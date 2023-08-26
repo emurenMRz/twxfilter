@@ -1,0 +1,10 @@
+{
+	"manifest_version": 3,
+	"name": "twxfilter",
+	"version": "1.0.0",
+	"description": "Media filter for Tw... X Web client.",
+	"permissions": [
+		"storage"
+	],
+	"devtools_page": "devtools.html"
+}

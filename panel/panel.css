@@ -1,0 +1,65 @@
+body {
+    background-color: #111;
+    color: lightgray
+}
+
+article {
+    padding-bottom: 2em;
+}
+
+article>header {
+    margin-bottom: 1em;
+    padding-left: 1em;
+    padding-right: 5em;
+    border-bottom: 1px solid white;
+    font-size: 1.25em;
+}
+
+.thumb {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100px;
+    height: 100px;
+    margin: 0;
+    padding: 0;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    box-sizing: border-box;
+    cursor: pointer;
+    z-index: 1;
+}
+
+.video-icon {
+    font-size: 1.5rem;
+    z-index: 100;
+}
+
+.remove {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 1rem;
+    height: 1rem;
+    line-height: 1rem;
+    background-color: black;
+    border-radius: 1rem;
+    text-align: center;
+    cursor: pointer;
+    z-index: 1000;
+}
+.remove:hover {
+    background-color: red;
+}
+
+#result {
+    white-space: pre;
+}
+
+.result-thumbs {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    grid-auto-rows: 100px;
+}
