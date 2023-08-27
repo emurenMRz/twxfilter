@@ -22,23 +22,29 @@ const mediaParser = media => {
 	return mediaData;
 };
 
+const entryParser = entry => {
+	const content = entry.content;
+	if (content.entryType !== 'TimelineTimelineItem') return;
+	if (content.itemContent.itemType !== "TimelineTweet") return;
+
+	const result = content.itemContent.tweet_results.result;
+	if (result === undefined) return;
+
+	const legacy = result?.tweet?.legacy || result?.legacy;
+	const medias = legacy?.extended_entities?.media.map(mediaParser);
+	chrome.runtime.connect({ name: "twxfilter-panel" }).postMessage(medias);
+};
+
+const timelineParesr = instruction => {
+	if (instruction.type !== 'TimelineAddEntries' || !(instruction.entries instanceof Array)) return;
+
+	instruction.entries.forEach(entryParser);
+};
+
 const extractMedia = (url, contentType, content) => {
 	const o = JSON.parse(content);
 	const instructions = o.data.threaded_conversation_with_injections_v2.instructions;
-	instructions.forEach(instruction => {
-		if (instruction.type !== 'TimelineAddEntries' || !(instruction.entries instanceof Array)) return;
-		instruction.entries.forEach(entry => {
-			if (entry.content.entryType !== 'TimelineTimelineItem') return;
-			if (entry.content.itemContent.itemType !== "TimelineTweet") return;
-
-			const result = entry.content.itemContent.tweet_results.result;
-			if (result === undefined) return;
-
-			const legacy = result?.tweet?.legacy || result?.legacy;
-			const medias = legacy?.extended_entities?.media.map(mediaParser);
-			chrome.runtime.connect({ name: "twxfilter-panel" }).postMessage(medias);
-		});
-	});
+	instructions.forEach(timelineParesr);
 }
 
 /**

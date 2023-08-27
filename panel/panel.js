@@ -58,7 +58,9 @@ const updatePanel = () => {
 				style: { backgroundImage: `url("${thumbUrl}")` },
 				onclick: () => open(isPhoto ? `${m.url}?name=orig` : m.videoUrl, '_blank'),
 			};
-			const videoIconProps = { className: "video-icon" };
+			const videoIconProps = {
+				className: "video-icon"
+			};
 			const removeIconProps = {
 				className: "remove",
 				onclick: (e) => {
