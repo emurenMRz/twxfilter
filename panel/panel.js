@@ -82,7 +82,11 @@ const exportURLs = () => {
 		const medias = result.medias;
 		if (!(medias instanceof Array)) return;
 
-		const blob = new Blob([medias.filter(m => m.type === 'photo').map(m => m.url).join("\r\n")], { type: "text/plain" });
+		const urls = [
+			...medias.filter(m => m.type === 'photo').map(m => m.url),
+			...medias.filter(m => m.type !== 'photo').map(m => m.videoUrl)
+		];
+		const blob = new Blob([urls.join("\r\n")], { type: "text/plain" });
 		const url = URL.createObjectURL(blob);
 		ce("a", { download: "urllist.txt", href: url }).click();
 		URL.revokeObjectURL(url);
