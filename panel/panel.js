@@ -103,9 +103,37 @@ const exportURLs = () => {
 	});
 }
 
+const exportAllData = () => {
+	chrome.storage.local.get("medias", result => {
+		const medias = result.medias;
+		if (!(medias instanceof Array)) return;
+
+		const blob = new Blob([JSON.stringify(medias)], { type: "application/json" });
+		const url = URL.createObjectURL(blob);
+		ce("a", { download: "twfilter-all-data.json", href: url }).click();
+		URL.revokeObjectURL(url);
+	});
+}
+
+const importAllData = files => {
+	Array.from(files).forEach(file => {
+		if (file.type !== 'application/json') return;
+
+		const reader = new FileReader();
+		reader.onload = e => {
+			const medias = JSON.parse(e.target.result);
+			chrome.storage.local.set({ medias }, () => updatePanel())
+		};
+		reader.readAsText(file);
+	});
+}
+
 addEventListener('load', () => updatePanel());
-$("export-button").addEventListener('click', () => exportURLs());
+$("export-urls").addEventListener('click', () => exportURLs());
 $("all-remove-button").addEventListener('click', () => chrome.storage.local.set({ medias: [] }, () => updatePanel()));
+$("export-all-data").addEventListener('click', () => exportAllData());
+$("import-all-data").addEventListener('click', () => $("upload-all-data").click());
+$("upload-all-data").addEventListener('change', e => importAllData(e?.target?.files));
 
 /**
  * Recieve message

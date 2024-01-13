@@ -73,6 +73,11 @@ article>header {
     background-color: red;
 }
 
+#main-menu {
+    display: flex;
+    justify-content: space-between;
+}
+
 #result {
     white-space: pre;
 }
