@@ -18,6 +18,7 @@ const thumbnailUrl = url => {
 
 const addImageData = inMedias => {
 	if (!canUseLocalStorage) return;
+	if (!inMedias) return;
 
 	chrome.storage.local.get("medias", result => {
 		const medias = result.medias || [];
