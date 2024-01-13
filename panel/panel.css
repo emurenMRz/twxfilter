@@ -73,6 +73,17 @@ article>header {
     background-color: red;
 }
 
+.duration-frame {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    line-height: 1rem;
+    background-color: rgba(0, 0, 0, .75);
+    text-align: center;
+    z-index: 1000;
+}
+
 #main-menu {
     display: flex;
     justify-content: space-between;

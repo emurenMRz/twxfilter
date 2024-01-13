@@ -4,7 +4,8 @@ const mediaParser = media => {
 		id: media.id_str,
 		type: media.type,
 		url: media.media_url_https,
-		videoUrl: undefined
+		videoUrl: undefined,
+		durationMillis: undefined
 	}
 
 	if (media.type === "video" || media.type === "animated_gif") {
@@ -15,6 +16,7 @@ const mediaParser = media => {
 		const maxBitrate = Math.max(...variants.map(variant => variant.bitrate | 0));
 		const variant = variants.find(variant => variant.bitrate === maxBitrate);
 		mediaData.videoUrl = variant.url;
+		mediaData.durationMillis = media.video_info?.duration_millis
 	}
 
 	chrome.devtools.inspectedWindow.eval(`console.log('${JSON.stringify(mediaData)}');`);

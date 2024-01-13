@@ -79,10 +79,20 @@ const updatePanel = () => {
 				}
 			};
 
+			const durationElement = (() => {
+				if (m.durationMillis === undefined) return undefined;
+
+				const seconds = m.durationMillis / 1000;
+				const duration = `${seconds / 60 | 0}:${String(seconds % 60 | 0).padStart(2, "0")}`;
+				return ce("span", { className: "duration-frame" }, duration);
+			})();
+
 			resultElm.appendChild(ce("div", cellProps,
 				ce("span", sourcePostIconProps, "🔗"),
 				ce("span", videoIconProps, !isPhoto ? "🎞️" : ""),
-				ce("span", removeIconProps, "✖")));
+				ce("span", removeIconProps, "✖"),
+				durationElement
+			));
 		});
 	});
 }
