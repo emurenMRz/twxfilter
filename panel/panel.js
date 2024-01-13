@@ -59,6 +59,14 @@ const updatePanel = () => {
 				style: { backgroundImage: `url("${thumbUrl}")` },
 				onclick: () => open(isPhoto ? `${m.url}?name=orig` : m.videoUrl, '_blank'),
 			};
+			const sourcePostIconProps = {
+				className: "source-post-icon",
+				onclick: (e) => {
+					e.preventDefault();
+					e.stopPropagation();
+					open(m.parentUrl, '_blank');
+				}
+			}
 			const videoIconProps = {
 				className: "video-icon"
 			};
@@ -72,6 +80,7 @@ const updatePanel = () => {
 			};
 
 			resultElm.appendChild(ce("div", cellProps,
+				ce("span", sourcePostIconProps, "🔗"),
 				ce("span", videoIconProps, !isPhoto ? "🎞️" : ""),
 				ce("span", removeIconProps, "✖")));
 		});
