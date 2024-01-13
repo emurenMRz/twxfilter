@@ -30,9 +30,25 @@ const entryParser = entry => {
 	const result = content.itemContent.tweet_results.result;
 	if (result === undefined) return;
 
-	const legacy = result?.tweet?.legacy || result?.legacy;
-	const medias = legacy?.extended_entities?.media.map(mediaParser);
-	chrome.runtime.connect({ name: "twxfilter-panel" }).postMessage(medias);
+	const legacy = result?.tweet?.legacy || result?.card?.legacy || result?.legacy;
+	if (legacy === undefined) return;
+
+	const medias = (() => {
+		if (legacy.name === 'unified_card' && 'binding_values' in legacy) {
+			const unifiedCard = legacy.binding_values.find(v => v.key === 'unified_card');
+
+			console.debug(`unifiedCard.value.type: ${unifiedCard.value.type}`);
+			if (unifiedCard.value.type === 'STRING') {
+				const card = JSON.parse(unifiedCard.value.string_value);
+				if (card.type === "video_website")
+					return Object.values(card.media_entities);
+			}
+		}
+
+		return legacy.extended_entities?.media;
+	})();
+
+	chrome.runtime.connect({ name: "twxfilter-panel" }).postMessage(medias.map(mediaParser));
 };
 
 const timelineParesr = instruction => {
