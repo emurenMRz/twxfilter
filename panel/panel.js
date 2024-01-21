@@ -25,10 +25,12 @@ const addImageData = inMedias => {
 
 		inMedias.forEach(media => {
 			const index = medias.findIndex(v => v.id === media.id);
+			const m = { ...media, timestamp: Date.now() }
+
 			if (index === -1)
-				medias.push(media);
+				medias.push(m);
 			else
-				medias[index] = media;
+				medias[index] = m;
 		});
 
 		chrome.storage.local.set({ medias }, () => updatePanel());
@@ -116,6 +118,15 @@ const exportURLs = () => {
 	});
 }
 
+const changeOrder = () => {
+	chrome.storage.local.get("medias", result => {
+		const medias = result.medias;
+		if (!(medias instanceof Array)) return;
+
+		chrome.storage.local.set({ medias: medias.reverse() }, () => updatePanel());
+	});
+}
+
 const exportAllData = () => {
 	chrome.storage.local.get("medias", result => {
 		const medias = result.medias;
@@ -134,7 +145,12 @@ const importAllData = files => {
 
 		const reader = new FileReader();
 		reader.onload = e => {
-			const medias = JSON.parse(e.target.result);
+			const medias = JSON.parse(e.target.result).sort((a, b) => {
+				if (!a.timestamp && !b.timestamp) return 0;
+				if (!a.timestamp) return 1;
+				if (!b.timestamp) return -1;
+				return b.timestamp - a.timestamp;
+			});
 			chrome.storage.local.set({ medias }, () => updatePanel())
 		};
 		reader.readAsText(file);
@@ -143,10 +159,11 @@ const importAllData = files => {
 
 addEventListener('load', () => updatePanel());
 $("export-urls").addEventListener('click', () => exportURLs());
-$("all-remove-button").addEventListener('click', () => chrome.storage.local.set({ medias: [] }, () => updatePanel()));
+$("change-order").addEventListener('click', () => changeOrder());
 $("export-all-data").addEventListener('click', () => exportAllData());
 $("import-all-data").addEventListener('click', () => $("upload-all-data").click());
 $("upload-all-data").addEventListener('change', e => importAllData(e?.target?.files));
+$("all-remove-button").addEventListener('click', () => chrome.storage.local.set({ medias: [] }, () => updatePanel()));
 
 /**
  * Recieve message
