@@ -87,6 +87,7 @@ article>header {
 #main-menu {
     display: flex;
     justify-content: space-between;
+    align-items: center;
 }
 
 #result {
@@ -97,4 +98,20 @@ article>header {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
     grid-auto-rows: 100px;
+}
+
+#system-feature {
+    display: flex;
+    flex-direction: row;
+}
+
+.icon-button {
+    cursor: pointer;
+    margin: auto .5rem;
+    padding: .25rem;
+    border-radius: .2rem;
+}
+
+.icon-button:hover {
+    background-color: #333;
 }
