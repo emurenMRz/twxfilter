@@ -24,8 +24,11 @@ const addImageData = inMedias => {
 		const medias = result.medias || [];
 
 		inMedias.forEach(media => {
-			if (!medias.some(v => v.id === media.id))
+			const index = medias.findIndex(v => v.id === media.id);
+			if (index === -1)
 				medias.push(media);
+			else
+				medias[index] = media;
 		});
 
 		chrome.storage.local.set({ medias }, () => updatePanel());
