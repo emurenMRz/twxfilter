@@ -4,6 +4,13 @@ const canUseLocalStorage = chrome.storage !== undefined && chrome.storage.local 
 
 chrome.devtools.inspectedWindow.eval(`console.log('canUseLocalStorage: ${JSON.stringify(canUseLocalStorage)}');`);
 
+const sortProc = (a, b) => {
+	if (!a.timestamp && !b.timestamp) return 0;
+	if (!a.timestamp) return 1;
+	if (!b.timestamp) return -1;
+	return b.timestamp - a.timestamp;
+};
+
 const thumbnailUrl = url => {
 	if (!url.startsWith("https://pbs.twimg.com/media/")) return url;
 
@@ -33,7 +40,7 @@ const addImageData = inMedias => {
 				medias[index] = m;
 		});
 
-		chrome.storage.local.set({ medias }, () => updatePanel());
+		chrome.storage.local.set({ medias: medias.sort(sortProc) }, () => updatePanel());
 	});
 };
 
@@ -145,12 +152,7 @@ const importAllData = files => {
 
 		const reader = new FileReader();
 		reader.onload = e => {
-			const medias = JSON.parse(e.target.result).sort((a, b) => {
-				if (!a.timestamp && !b.timestamp) return 0;
-				if (!a.timestamp) return 1;
-				if (!b.timestamp) return -1;
-				return b.timestamp - a.timestamp;
-			});
+			const medias = JSON.parse(e.target.result).sort(sortProc);
 			chrome.storage.local.set({ medias }, () => updatePanel())
 		};
 		reader.readAsText(file);
