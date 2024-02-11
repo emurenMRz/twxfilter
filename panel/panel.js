@@ -192,8 +192,8 @@ const importAllData = files => {
 
 addEventListener('load', () => updatePanel());
 $("export-urls").addEventListener('click', () => exportURLs());
-$("change-order").addEventListener('click', () => changeOrder());
 $("clear-select").addEventListener('click', () => clearSelect());
+$("change-order").addEventListener('click', () => changeOrder());
 $("export-all-data").addEventListener('click', () => exportAllData());
 $("import-all-data").addEventListener('click', () => $("upload-all-data").click());
 $("upload-all-data").addEventListener('change', e => importAllData(e?.target?.files));
