@@ -5,7 +5,8 @@ const mediaParser = media => {
 		type: media.type,
 		url: media.media_url_https,
 		videoUrl: undefined,
-		durationMillis: undefined
+		durationMillis: undefined,
+		selected: false
 	}
 
 	if (media.type === "video" || media.type === "animated_gif") {

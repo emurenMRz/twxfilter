@@ -75,6 +75,25 @@ article>header {
     background-color: red;
 }
 
+.check-icon {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 1rem;
+    height: 1rem;
+    line-height: 1rem;
+    background-color: black;
+    color: darkgray;
+    border-radius: 1rem;
+    text-align: center;
+    cursor: pointer;
+    z-index: 1000;
+}
+
+.check-icon.checked {
+    color: red;
+}
+
 .duration-frame {
     position: absolute;
     bottom: 0;
@@ -83,7 +102,7 @@ article>header {
     line-height: 1rem;
     background-color: rgba(0, 0, 0, .75);
     text-align: center;
-    z-index: 1000;
+    z-index: 500;
 }
 
 #main-menu {

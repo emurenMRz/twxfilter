@@ -51,6 +51,15 @@ const removeImageData = id => {
 	});
 };
 
+const checkImageData = id => {
+	chrome.storage.local.get("medias", result => {
+		const medias = result.medias;
+		const media = medias.find(m => m.id === id);
+		media.selected = !media.selected;
+		chrome.storage.local.set({ medias }, () => updatePanel())
+	});
+};
+
 const updatePanel = () => {
 	chrome.storage.local.get("medias", result => {
 		const medias = result.medias;
@@ -67,6 +76,7 @@ const updatePanel = () => {
 			const thumbUrl = thumbnailUrl(m.url);
 			const isPhoto = m.type === 'photo';
 			const cellProps = {
+				id: m.id,
 				className: "thumb",
 				style: { backgroundImage: `url("${thumbUrl}")` },
 				onclick: () => open(isPhoto ? `${m.url}?name=orig` : m.videoUrl, '_blank'),
@@ -90,6 +100,18 @@ const updatePanel = () => {
 					removeImageData(m.id);
 				}
 			};
+			const checkIconProps = {
+				className: `check-icon ${m.selected ? 'checked' : ''}`,
+				onclick: (e) => {
+					e.preventDefault();
+					e.stopPropagation();
+					checkImageData(m.id);
+					if (m.selected)
+						e.target.classList.add('checked');
+					else
+						e.target.classList.remove('checked');
+				}
+			};
 
 			const durationElement = (() => {
 				if (m.durationMillis === undefined) return undefined;
@@ -103,6 +125,7 @@ const updatePanel = () => {
 				ce("span", sourcePostIconProps, "🔗"),
 				ce("span", videoIconProps, !isPhoto ? "🎞️" : ""),
 				ce("span", removeIconProps, "✖"),
+				ce("span", checkIconProps, "✔"),
 				durationElement
 			));
 		});
@@ -114,11 +137,10 @@ const exportURLs = () => {
 		const medias = result.medias;
 		if (!(medias instanceof Array)) return;
 
-		const urls = [
-			...medias.filter(m => m.type === 'photo').map(m => m.url),
-			...medias.filter(m => m.type !== 'photo').map(m => m.videoUrl)
-		];
-		const blob = new Blob([urls.join("\r\n")], { type: "text/plain" });
+		const hasSelectMedia = medias.some(m => m.selected);
+		const targetMedias = !hasSelectMedia ? medias : medias.filter(m => m.selected);
+		const urls = targetMedias.map(m => m.type === 'photo' ? m.url : m.videoUrl);
+		const blob = new Blob([urls.join("\n")], { type: "text/plain" });
 		const url = URL.createObjectURL(blob);
 		ce("a", { download: "urllist.txt", href: url }).click();
 		URL.revokeObjectURL(url);
@@ -131,6 +153,15 @@ const changeOrder = () => {
 		if (!(medias instanceof Array)) return;
 
 		chrome.storage.local.set({ medias: medias.reverse() }, () => updatePanel());
+	});
+}
+
+const clearSelect = () => {
+	chrome.storage.local.get("medias", result => {
+		const medias = result.medias;
+		if (!(medias instanceof Array)) return;
+
+		chrome.storage.local.set({ medias: medias.map(m => { m.selected = false; return m; }) }, () => updatePanel());
 	});
 }
 
@@ -162,6 +193,7 @@ const importAllData = files => {
 addEventListener('load', () => updatePanel());
 $("export-urls").addEventListener('click', () => exportURLs());
 $("change-order").addEventListener('click', () => changeOrder());
+$("clear-select").addEventListener('click', () => clearSelect());
 $("export-all-data").addEventListener('click', () => exportAllData());
 $("import-all-data").addEventListener('click', () => $("upload-all-data").click());
 $("upload-all-data").addEventListener('change', e => importAllData(e?.target?.files));
