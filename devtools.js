@@ -51,6 +51,8 @@ const entryParser = entry => {
 		return legacy.extended_entities?.media;
 	})();
 
+	if (!medias) return;
+
 	chrome.runtime.connect({ name: "twxfilter-panel" }).postMessage(medias.map(mediaParser));
 };
 
