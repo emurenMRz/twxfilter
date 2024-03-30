@@ -1,4 +1,5 @@
 import { $, createElement as ce } from "./dom.js";
+import backendApi from "./api.js";
 
 const canUseLocalStorage = chrome.storage !== undefined && chrome.storage.local !== undefined;
 
@@ -23,16 +24,20 @@ const thumbnailUrl = url => {
 	return `${path}?format=${q.format}&name=small`;
 }
 
-const addImageData = inMedias => {
+const addImageData = inMedia => {
 	if (!canUseLocalStorage) return;
-	if (!inMedias) return;
+	if (!inMedia) return;
+
+	const timestamp = Date.now();
+	const mediaTS = inMedia.map(m => ({ ...m, timestamp }));
+
+	backendApi.POST("/api/media", mediaTS);
 
 	chrome.storage.local.get("medias", result => {
 		const medias = result.medias || [];
 
-		inMedias.forEach(media => {
-			const index = medias.findIndex(v => v.id === media.id);
-			const m = { ...media, timestamp: Date.now() }
+		mediaTS.forEach(m => {
+			const index = medias.findIndex(v => v.id === m.id);
 
 			if (index === -1)
 				medias.push(m);
@@ -47,6 +52,9 @@ const addImageData = inMedias => {
 const removeImageData = id => {
 	chrome.storage.local.get("medias", result => {
 		const medias = result.medias.filter(m => m.id !== id);
+
+		backendApi.DELETE(`/api/media/${id}`);
+
 		chrome.storage.local.set({ medias }, () => updatePanel())
 	});
 };
@@ -138,8 +146,8 @@ const exportURLs = () => {
 		if (!(medias instanceof Array)) return;
 
 		const hasSelectMedia = medias.some(m => m.selected);
-		const targetMedias = !hasSelectMedia ? medias : medias.filter(m => m.selected);
-		const urls = targetMedias.map(m => m.type === 'photo' ? m.url : m.videoUrl);
+		const targetMedia = !hasSelectMedia ? medias : medias.filter(m => m.selected);
+		const urls = targetMedia.map(m => m.type === 'photo' ? m.url : m.videoUrl);
 		const blob = new Blob([urls.join("\n")], { type: "text/plain" });
 		const url = URL.createObjectURL(blob);
 		ce("a", { download: "urllist.txt", href: url }).click();
@@ -172,7 +180,7 @@ const exportAllData = () => {
 
 		const blob = new Blob([JSON.stringify(medias)], { type: "application/json" });
 		const url = URL.createObjectURL(blob);
-		ce("a", { download: "twfilter-all-data.json", href: url }).click();
+		ce("a", { download: "twxfilter-all-data.json", href: url }).click();
 		URL.revokeObjectURL(url);
 	});
 }
@@ -184,20 +192,64 @@ const importAllData = files => {
 		const reader = new FileReader();
 		reader.onload = e => {
 			const medias = JSON.parse(e.target.result).sort(sortProc);
+			backendApi.POST("/api/media", medias);
 			chrome.storage.local.set({ medias }, () => updatePanel())
 		};
 		reader.readAsText(file);
 	});
 }
 
-addEventListener('load', () => updatePanel());
+const openConfigDialog = () => {
+	chrome.storage.local.get("config", result => {
+		const { backendAddress } = result.config;
+
+		$("backend-address").value = backendAddress ?? "";
+
+		$('config-dialog').classList.toggle("open");
+	});
+}
+
+const applyConfig = () => {
+	const config = {
+		backendAddress: $("backend-address").value
+	};
+
+	chrome.storage.local.set({ config })
+		.catch(e => {
+			alert(e.message);
+			console.error(e);
+		})
+		.finally(() => $('config-dialog').classList.remove("open"));
+}
+
+addEventListener('load', () => {
+	chrome.storage.local.get("medias", result => {
+		const medias = result.medias;
+		if (!(medias instanceof Array)) {
+			updatePanel();
+			return;
+		}
+
+		backendApi.POST("/api/media", medias)
+			.then(medias => chrome.storage.local.set({ medias }))
+			.catch(console.error)
+			.finally(() => updatePanel());
+	});
+});
+
 $("export-urls").addEventListener('click', () => exportURLs());
 $("clear-select").addEventListener('click', () => clearSelect());
+$("open-config-dialog").addEventListener('click', () => openConfigDialog());
 $("change-order").addEventListener('click', () => changeOrder());
 $("export-all-data").addEventListener('click', () => exportAllData());
 $("import-all-data").addEventListener('click', () => $("upload-all-data").click());
 $("upload-all-data").addEventListener('change', e => importAllData(e?.target?.files));
-$("all-remove-button").addEventListener('click', () => chrome.storage.local.set({ medias: [] }, () => updatePanel()));
+$("all-remove-button").addEventListener('click', () => {
+	backendApi.DELETE(`/api/media`);
+	chrome.storage.local.set({ medias: [] }, () => updatePanel())
+});
+
+$("apply-config").addEventListener('click', () => applyConfig());
 
 /**
  * Recieve message
