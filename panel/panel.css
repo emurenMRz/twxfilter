@@ -145,3 +145,29 @@ article>header {
 .icon-button:hover {
     background-color: #333;
 }
+
+#config-dialog {
+    position: fixed;
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    margin: 2rem 1rem 1rem;
+    padding: 1rem;
+    top: -2rem;
+    right: 0;
+
+    background-color: #333;
+    filter: drop-shadow(1rem 1rem 1rem black);
+    border-radius: .5rem;
+
+    visibility: hidden;
+    opacity: 0;
+    transition: 300ms ease all;
+    z-index: 1000;
+}
+
+#config-dialog.open {
+    top: 0;
+    visibility: visible;
+    opacity: 100;
+}
