@@ -201,7 +201,7 @@ const importAllData = files => {
 
 const openConfigDialog = () => {
 	chrome.storage.local.get("config", result => {
-		const { backendAddress } = result.config;
+		const backendAddress = result?.config?.backendAddress;
 
 		$("backend-address").value = backendAddress ?? "";
 
@@ -224,11 +224,7 @@ const applyConfig = () => {
 
 addEventListener('load', () => {
 	chrome.storage.local.get("medias", result => {
-		const medias = result.medias;
-		if (!(medias instanceof Array)) {
-			updatePanel();
-			return;
-		}
+		const medias = result?.medias ?? [];
 
 		backendApi.POST("/api/media", medias)
 			.then(medias => chrome.storage.local.set({ medias }))
