@@ -79,7 +79,7 @@ chrome.devtools.network.onRequestFinished.addListener(
 		const response = io.response;
 
 		const url = request.url.substring(0, request.url.indexOf('?'));
-		if (!url.startsWith("https://twitter.com/i/api/graphql/") || !url.endsWith("TweetDetail")) return;
+		if (!url.startsWith("https://x.com/i/api/graphql/") || !url.endsWith("TweetDetail")) return;
 
 		const contentType = response?.headers?.find(v => v.name === 'content-type').value;
 		if (typeof contentType !== "string") return;
