@@ -120,6 +120,9 @@ const updatePanel = () => {
 						e.target.classList.remove('checked');
 				}
 			};
+			const cachedIconProps = {
+				className: "cached-icon",
+			};
 
 			const durationElement = (() => {
 				if (m.durationMillis === undefined) return undefined;
@@ -134,6 +137,7 @@ const updatePanel = () => {
 				ce("span", videoIconProps, !isPhoto ? "🎞️" : ""),
 				ce("span", removeIconProps, "✖"),
 				ce("span", checkIconProps, "✔"),
+				m.hasCache && ce("span", cachedIconProps, "🆗"),
 				durationElement
 			));
 		});

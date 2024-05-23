@@ -94,6 +94,25 @@ article>header {
     color: red;
 }
 
+.cached-icon {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 1rem;
+    height: 1rem;
+    line-height: 1rem;
+    background-color: black;
+    color: darkgray;
+    border-radius: 1rem;
+    text-align: center;
+    cursor: pointer;
+    z-index: 1000;
+}
+
+.cached-icon:hover {
+    background-color: red;
+}
+
 .duration-frame {
     position: absolute;
     bottom: 0;
