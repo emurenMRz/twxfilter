@@ -68,6 +68,21 @@ const checkImageData = id => {
 	});
 };
 
+const applyObserve = element => {
+	const observer = new IntersectionObserver(entries => {
+		entries.forEach(entry => {
+			if (!entry.isIntersecting) return;
+			if (element.onclick) return;
+
+			const { thumbUrl, mediaUrl } = element.dataset;
+			element.style.backgroundImage = `url("${thumbUrl}")`;
+			element.onclick = () => open(mediaUrl, '_blank');
+		});
+	});
+	observer.observe(element);
+	return element
+};
+
 const updatePanel = () => {
 	chrome.storage.local.get("medias", result => {
 		const medias = result.medias;
@@ -81,13 +96,14 @@ const updatePanel = () => {
 		resultElm.classList.add('result-thumbs');
 
 		medias.forEach(m => {
-			const thumbUrl = thumbnailUrl(m.url);
 			const isPhoto = m.type === 'photo';
 			const cellProps = {
 				id: m.id,
 				className: "thumb",
-				style: { backgroundImage: `url("${thumbUrl}")` },
-				onclick: () => open(isPhoto ? `${m.url}?name=orig` : m.videoUrl, '_blank'),
+				dataset: {
+					thumbUrl: thumbnailUrl(m.url),
+					mediaUrl: isPhoto ? `${m.url}?name=orig` : m.videoUrl
+				},
 			};
 			const sourcePostIconProps = {
 				className: "source-post-icon",
@@ -132,14 +148,14 @@ const updatePanel = () => {
 				return ce("span", { className: "duration-frame" }, duration);
 			})();
 
-			resultElm.appendChild(ce("div", cellProps,
+			resultElm.appendChild(applyObserve(ce("div", cellProps,
 				ce("span", sourcePostIconProps, "🔗"),
 				ce("span", videoIconProps, !isPhoto ? "🎞️" : ""),
 				ce("span", removeIconProps, "✖"),
 				ce("span", checkIconProps, "✔"),
 				m.hasCache && ce("span", cachedIconProps, "🆗"),
 				durationElement
-			));
+			)));
 		});
 	});
 }
