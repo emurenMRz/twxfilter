@@ -21,9 +21,7 @@ const toJson = r => {
 export const GET = async (endpoint, params) => {
 	const ep = await validEndpoint(endpoint);
 	if (!ep) return;
-
-	if (!params)
-		return await fetch(ep);
+	if (!params) return await fetch(ep).then(toJson);
 
 	if (!(params instanceof Map))
 		throw new TypeError("params is not Map");
@@ -35,11 +33,7 @@ export const GET = async (endpoint, params) => {
 export const POST = async (endpoint, data) => {
 	const ep = await validEndpoint(endpoint);
 	if (!ep) return;
-
-	if (!data)
-		return await fetch(ep, {
-			method: "POST"
-		})
+	if (!data) return;
 
 	const contentType = "application/" + (typeof data === 'string' ? "x-www-form-urlencoded" : "json");
 	const body = typeof data === 'string' ? data : JSON.stringify(data);
