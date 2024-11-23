@@ -84,81 +84,88 @@ const applyObserve = element => {
 };
 
 const updatePanel = () => {
-	chrome.storage.local.get("medias", result => {
-		const medias = result.medias;
-		const resultElm = $('result');
-		resultElm.textContent = '';
+	chrome.storage.local.get("config", result => {
+		const backendUri = result?.config?.backendAddress;
 
-		if (!(medias instanceof Array)) return;
+		chrome.storage.local.get("medias", result => {
+			const medias = result.medias;
+			const resultElm = $('result');
+			resultElm.textContent = '';
 
-		$("mode-header").textContent = `Thumbs: ${medias.length} Photo: ${medias.filter(m => m.type === 'photo').length}`;
+			if (!(medias instanceof Array)) return;
 
-		resultElm.classList.add('result-thumbs');
+			$("mode-header").textContent = `Thumbs: ${medias.length} Photo: ${medias.filter(m => m.type === 'photo').length}`;
 
-		medias.forEach(m => {
-			const isPhoto = m.type === 'photo';
-			const cellProps = {
-				id: m.id,
-				className: "thumb",
-				dataset: {
-					thumbUrl: thumbnailUrl(m.url),
-					mediaUrl: isPhoto ? `${m.url}?name=orig` : m.videoUrl
-				},
-			};
-			const sourcePostIconProps = {
-				className: "source-post-icon",
-				onclick: (e) => {
-					e.preventDefault();
-					e.stopPropagation();
-					open(m.parentUrl, '_blank');
-				}
-			}
-			const videoIconProps = {
-				className: "video-icon"
-			};
-			const removeIconProps = {
-				className: "remove",
-				onclick: (e) => {
-					e.preventDefault();
-					e.stopPropagation();
-					removeImageData(m.id);
-				}
-			};
-			const checkIconProps = {
-				className: `check-icon ${m.selected ? 'checked' : ''}`,
-				onclick: (e) => {
-					e.preventDefault();
-					e.stopPropagation();
-					checkImageData(m.id);
-					if (m.selected)
-						e.target.classList.add('checked');
-					else
-						e.target.classList.remove('checked');
-				}
-			};
-			const cachedIconProps = {
-				className: "cached-icon",
-			};
+			resultElm.classList.add('result-thumbs');
 
-			const durationElement = (() => {
-				if (m.durationMillis === undefined) return undefined;
+			medias.forEach(m => {
+				const isPhoto = m.type === 'photo';
+				const mediaPath = !backendUri || !m.mediaPath ? undefined : `${backendUri}/${m.mediaPath}`;
+				const cellProps = {
+					id: m.id,
+					className: "thumb",
+					dataset: {
+						hasCache: m.hasCache,
+						thumbUrl: thumbnailUrl(m.url),
+						mediaUrl: mediaPath ?? (isPhoto ? `${m.url}?name=orig` : m.videoUrl)
+					},
+					style: { opacity: m.hasCache ? "1" : ".25" }
+				};
+				const sourcePostIconProps = {
+					className: "source-post-icon",
+					onclick: (e) => {
+						e.preventDefault();
+						e.stopPropagation();
+						open(m.parentUrl, '_blank');
+					}
+				};
+				const videoIconProps = {
+					className: "video-icon"
+				};
+				const removeIconProps = {
+					className: "remove",
+					onclick: (e) => {
+						e.preventDefault();
+						e.stopPropagation();
+						removeImageData(m.id);
+					}
+				};
+				const checkIconProps = {
+					className: `check-icon ${m.selected ? 'checked' : ''}`,
+					onclick: (e) => {
+						e.preventDefault();
+						e.stopPropagation();
+						checkImageData(m.id);
+						if (m.selected)
+							e.target.classList.add('checked');
+						else
+							e.target.classList.remove('checked');
+					}
+				};
+				const cachedIconProps = {
+					className: "cached-icon",
+				};
 
-				const seconds = m.durationMillis / 1000;
-				const duration = `${seconds / 60 | 0}:${String(seconds % 60 | 0).padStart(2, "0")}`;
-				return ce("span", { className: "duration-frame" }, duration);
-			})();
+				const durationElement = (() => {
+					if (m.durationMillis === undefined) return undefined;
 
-			resultElm.appendChild(applyObserve(ce("div", cellProps,
-				ce("span", sourcePostIconProps, "🔗"),
-				ce("span", videoIconProps, !isPhoto ? "🎞️" : ""),
-				ce("span", removeIconProps, "✖"),
-				ce("span", checkIconProps, "✔"),
-				m.hasCache && ce("span", cachedIconProps, "🆗"),
-				durationElement
-			)));
+					const seconds = m.durationMillis / 1000;
+					const duration = `${seconds / 60 | 0}:${String(seconds % 60 | 0).padStart(2, "0")}`;
+					return ce("span", { className: "duration-frame" }, duration);
+				})();
+
+				resultElm.appendChild(applyObserve(ce("div", cellProps,
+					ce("span", sourcePostIconProps, "🔗"),
+					ce("span", videoIconProps, !isPhoto ? "🎞️" : ""),
+					ce("span", removeIconProps, "✖"),
+					ce("span", checkIconProps, "✔"),
+					m.hasCache && ce("span", cachedIconProps, "🆗"),
+					durationElement
+				)));
+			});
 		});
 	});
-}
+};
 
 const exportURLs = () => {
 	chrome.storage.local.get("medias", result => {
@@ -231,7 +238,7 @@ const openConfigDialog = () => {
 
 const applyConfig = () => {
 	const config = {
-		backendAddress: $("backend-address").value
+		backendAddress: backendApi.normalizeBackendAddress($("backend-address").value)
 	};
 
 	chrome.storage.local.set({ config })

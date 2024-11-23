@@ -1,15 +1,19 @@
 const reg = new RegExp("^https?://.+$");
 
+export const normalizeBackendAddress = backendAddress => {
+	if (typeof backendAddress !== 'string' || !backendAddress.match(reg)) throw new SyntaxError(`backend host: ${backendAddress}`);
+
+	return backendAddress[backendAddress.length - 1] === "/" ? backendAddress.substring(0, backendAddress.length - 1) : backendAddress;
+};
+
 const validEndpoint = async endpoint => {
 	const { backendAddress } = (await chrome.storage.local.get("config")).config;
 
 	if (!backendAddress) return;
-	if (typeof backendAddress !== 'string' || !backendAddress.match(reg)) throw new SyntaxError(`backend host: ${backendAddress}`);
 	if (typeof endpoint !== 'string') throw new TypeError(`endpoint is not string: ${endpoint}`);
 
-	const prefix = backendAddress[backendAddress.length - 1] === "/" ? backendAddress.substring(0, backendAddress.length - 1) : backendAddress;
 	const path = endpoint[0] !== "/" ? `/${endpoint}` : endpoint;
-	return `${prefix}${path}`;
+	return `${backendAddress}${path}`;
 };
 
 const toJson = r => {
@@ -55,4 +59,4 @@ export const DELETE = async (endpoint) => {
 	return await fetch(ep, { method: "DELETE" }).then(toJson);
 };
 
-export default { GET, POST, DELETE };
+export default { normalizeBackendAddress, GET, POST, DELETE };
