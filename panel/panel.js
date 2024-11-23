@@ -22,7 +22,7 @@ const thumbnailUrl = url => {
 	if (!q.format) throw Error("Unsupport syntax");
 
 	return `${path}?format=${q.format}&name=small`;
-}
+};
 
 const addImageData = inMedia => {
 	if (!canUseLocalStorage) return;
@@ -55,7 +55,7 @@ const removeImageData = id => {
 
 		backendApi.DELETE(`/api/media/${id}`);
 
-		chrome.storage.local.set({ medias }, () => updatePanel())
+		chrome.storage.local.set({ medias }, () => updatePanel());
 	});
 };
 
@@ -64,7 +64,7 @@ const checkImageData = id => {
 		const medias = result.medias;
 		const media = medias.find(m => m.id === id);
 		media.selected = !media.selected;
-		chrome.storage.local.set({ medias }, () => updatePanel())
+		chrome.storage.local.set({ medias }, () => updatePanel());
 	});
 };
 
@@ -80,7 +80,7 @@ const applyObserve = element => {
 		});
 	});
 	observer.observe(element);
-	return element
+	return element;
 };
 
 const updatePanel = () => {
@@ -180,7 +180,7 @@ const exportURLs = () => {
 		ce("a", { download: "urllist.txt", href: url }).click();
 		URL.revokeObjectURL(url);
 	});
-}
+};
 
 const changeOrder = () => {
 	chrome.storage.local.get("medias", result => {
@@ -189,7 +189,7 @@ const changeOrder = () => {
 
 		chrome.storage.local.set({ medias: medias.reverse() }, () => updatePanel());
 	});
-}
+};
 
 const clearSelect = () => {
 	chrome.storage.local.get("medias", result => {
@@ -198,7 +198,7 @@ const clearSelect = () => {
 
 		chrome.storage.local.set({ medias: medias.map(m => { m.selected = false; return m; }) }, () => updatePanel());
 	});
-}
+};
 
 const exportAllData = () => {
 	chrome.storage.local.get("medias", result => {
@@ -210,7 +210,7 @@ const exportAllData = () => {
 		ce("a", { download: "twxfilter-all-data.json", href: url }).click();
 		URL.revokeObjectURL(url);
 	});
-}
+};
 
 const importAllData = files => {
 	Array.from(files).forEach(file => {
@@ -220,11 +220,11 @@ const importAllData = files => {
 		reader.onload = e => {
 			const medias = JSON.parse(e.target.result).sort(sortProc);
 			backendApi.POST("/api/media", medias);
-			chrome.storage.local.set({ medias }, () => updatePanel())
+			chrome.storage.local.set({ medias }, () => updatePanel());
 		};
 		reader.readAsText(file);
 	});
-}
+};
 
 const openConfigDialog = () => {
 	chrome.storage.local.get("config", result => {
@@ -234,7 +234,7 @@ const openConfigDialog = () => {
 
 		$('config-dialog').classList.toggle("open");
 	});
-}
+};
 
 const applyConfig = () => {
 	const config = {
@@ -247,7 +247,7 @@ const applyConfig = () => {
 			console.error(e);
 		})
 		.finally(() => $('config-dialog').classList.remove("open"));
-}
+};
 
 addEventListener('load', () => {
 	chrome.storage.local.get("medias", result => {
@@ -269,7 +269,7 @@ $("import-all-data").addEventListener('click', () => $("upload-all-data").click(
 $("upload-all-data").addEventListener('change', e => importAllData(e?.target?.files));
 $("all-remove-button").addEventListener('click', () => {
 	backendApi.DELETE(`/api/media`);
-	chrome.storage.local.set({ medias: [] }, () => updatePanel())
+	chrome.storage.local.set({ medias: [] }, () => updatePanel());
 });
 
 $("apply-config").addEventListener('click', () => applyConfig());
@@ -282,6 +282,6 @@ chrome.runtime.onConnect.addListener(port => {
 
 	if (port.name === 'twxfilter-panel') {
 		port.onMessage.addListener(listener);
-		port.onDisconnect.addListener(port => port.onMessage.removeListener(listener))
+		port.onDisconnect.addListener(port => port.onMessage.removeListener(listener));
 	}
-})
+});
