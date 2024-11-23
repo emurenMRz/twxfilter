@@ -9,8 +9,8 @@ const validEndpoint = async endpoint => {
 
 	const prefix = backendAddress[backendAddress.length - 1] === "/" ? backendAddress.substring(0, backendAddress.length - 1) : backendAddress;
 	const path = endpoint[0] !== "/" ? `/${endpoint}` : endpoint;
-	return `${prefix}${path}`
-}
+	return `${prefix}${path}`;
+};
 
 const toJson = r => {
 	if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
@@ -28,7 +28,7 @@ export const GET = async (endpoint, params) => {
 
 	const query = Array.from(params, v => `${v[0]}=${v[1]}`).join('&');
 	return await fetch(`${ep}?${query}`).then(toJson);
-}
+};
 
 export const POST = async (endpoint, data) => {
 	const ep = await validEndpoint(endpoint);
@@ -46,13 +46,13 @@ export const POST = async (endpoint, data) => {
 		},
 		body
 	}).then(toJson);
-}
+};
 
 export const DELETE = async (endpoint) => {
 	const ep = await validEndpoint(endpoint);
 	if (!ep) return;
 
 	return await fetch(ep, { method: "DELETE" }).then(toJson);
-}
+};
 
 export default { GET, POST, DELETE };
