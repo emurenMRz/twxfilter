@@ -100,13 +100,14 @@ const updatePanel = () => {
 
 			medias.forEach(m => {
 				const isPhoto = m.type === 'photo';
+				const thumbPath = !backendUri || !m.thumbPath ? undefined : `${backendUri}/${m.thumbPath}`;
 				const mediaPath = !backendUri || !m.mediaPath ? undefined : `${backendUri}/${m.mediaPath}`;
 				const cellProps = {
 					id: m.id,
 					className: "thumb",
 					dataset: {
 						hasCache: m.hasCache,
-						thumbUrl: thumbnailUrl(m.url),
+						thumbUrl: thumbPath ?? thumbnailUrl(m.url),
 						mediaUrl: mediaPath ?? (isPhoto ? `${m.url}?name=orig` : m.videoUrl)
 					},
 					style: { opacity: m.hasCache ? "1" : ".25" }
