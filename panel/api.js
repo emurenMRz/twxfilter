@@ -16,22 +16,22 @@ const validEndpoint = async endpoint => {
 	return `${backendAddress}${path}`;
 };
 
-const toJson = r => {
+const parseResponse = r => {
 	if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
 
-	return r.json();
+	return r.headers.get("Content-Type").includes("application/json") ? r.json() : r.text();
 };
 
 export const GET = async (endpoint, params) => {
 	const ep = await validEndpoint(endpoint);
 	if (!ep) return;
-	if (!params) return await fetch(ep).then(toJson);
+	if (!params) return await fetch(ep).then(parseResponse);
 
 	if (!(params instanceof Map))
 		throw new TypeError("params is not Map");
 
 	const query = Array.from(params, v => `${v[0]}=${v[1]}`).join('&');
-	return await fetch(`${ep}?${query}`).then(toJson);
+	return await fetch(`${ep}?${query}`).then(parseResponse);
 };
 
 export const POST = async (endpoint, data) => {
@@ -49,14 +49,14 @@ export const POST = async (endpoint, data) => {
 			"Content-Length": body.length
 		},
 		body
-	}).then(toJson);
+	}).then(parseResponse);
 };
 
 export const DELETE = async (endpoint) => {
 	const ep = await validEndpoint(endpoint);
 	if (!ep) return;
 
-	return await fetch(ep, { method: "DELETE" }).then(toJson);
+	return await fetch(ep, { method: "DELETE" }).then(parseResponse);
 };
 
 export default { normalizeBackendAddress, GET, POST, DELETE };
