@@ -83,6 +83,92 @@ const applyObserve = element => {
 	return element;
 };
 
+const buildThumbnail = (media, backendUri) => {
+	const isPhoto = media.type === 'photo';
+	const thumbPath = !backendUri || !media.thumbPath ? undefined : `${backendUri}/${media.thumbPath}`;
+	const mediaPath = !backendUri || !media.mediaPath ? undefined : `${backendUri}/${media.mediaPath}`;
+	const cellProps = {
+		id: media.id,
+		className: "thumb",
+		dataset: {
+			timestamp: media.timestamp,
+			hasCache: media.hasCache,
+			thumbUrl: thumbPath ?? thumbnailUrl(media.url),
+			mediaUrl: mediaPath ?? (isPhoto ? `${media.url}?name=orig` : media.videoUrl),
+		},
+		style: { opacity: media.hasCache ? "1" : ".25" }
+	};
+	const sourcePostIconProps = {
+		className: "source-post-icon",
+		onclick: (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+			open(media.parentUrl, '_blank');
+		}
+	};
+	const videoIconProps = {
+		className: "video-icon"
+	};
+	const removeIconProps = {
+		className: "remove",
+		onclick: (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+			removeImageData(media.id);
+		}
+	};
+	const checkIconProps = {
+		className: `check-icon ${media.selected ? 'checked' : ''}`,
+		onclick: (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+			checkImageData(media.id);
+			if (media.selected)
+				e.target.classList.add('checked');
+			else
+				e.target.classList.remove('checked');
+		}
+	};
+	const cachedIconProps = {
+		className: "cached-icon",
+	};
+
+	const durationElement = (() => {
+		if (media.durationMillis === undefined) return undefined;
+
+		const seconds = media.durationMillis / 1000;
+		const duration = `${seconds / 60 | 0}:${String(seconds % 60 | 0).padStart(2, "0")}`;
+		return ce("span", { className: "duration-frame" }, duration);
+	})();
+
+	return applyObserve(ce("div", cellProps,
+		ce("span", sourcePostIconProps, "🔗"),
+		ce("span", videoIconProps, !isPhoto ? "🎞️" : ""),
+		ce("span", removeIconProps, "✖"),
+		ce("span", checkIconProps, "✔"),
+		media.hasCache && ce("span", cachedIconProps, "🆗"),
+		durationElement
+	));
+};
+
+const appendThumbnail = (resultElm, appendMedias, backendUri) => {
+	appendMedias.forEach(m => resultElm.appendChild(buildThumbnail(m, backendUri)));
+};
+
+const removeThumbnail = (resultElm, removeMedias) => {
+	if (removeMedias.length === 0) return;
+
+	const elms = Array.from(resultElm.children);
+	removeMedias.forEach(m => elms.find(e => e.id === m.id).remove());
+};
+
+const replaceThumbnail = (resultElm, updateMedias, backendUri) => {
+	if (updateMedias.length === 0) return;
+
+	const elms = Array.from(resultElm.children);
+	updateMedias.forEach(m => elms.find(e => m.id === e.id).replaceWith(buildThumbnail(m, backendUri)));
+};
+
 const updatePanel = () => {
 	chrome.storage.local.get("config", result => {
 		const backendUri = result?.config?.backendAddress;
@@ -90,80 +176,27 @@ const updatePanel = () => {
 		chrome.storage.local.get("medias", result => {
 			const medias = result.medias;
 			const resultElm = $('result');
-			resultElm.textContent = '';
 
-			if (!(medias instanceof Array)) return;
+			if (!(medias instanceof Array) || medias.length === 0) {
+				resultElm.replaceChildren();
+				return;
+			}
 
 			$("mode-header").textContent = `Thumbs: ${medias.length} Photo: ${medias.filter(m => m.type === 'photo').length}`;
 
 			resultElm.classList.add('result-thumbs');
 
-			medias.forEach(m => {
-				const isPhoto = m.type === 'photo';
-				const thumbPath = !backendUri || !m.thumbPath ? undefined : `${backendUri}/${m.thumbPath}`;
-				const mediaPath = !backendUri || !m.mediaPath ? undefined : `${backendUri}/${m.mediaPath}`;
-				const cellProps = {
-					id: m.id,
-					className: "thumb",
-					dataset: {
-						hasCache: m.hasCache,
-						thumbUrl: thumbPath ?? thumbnailUrl(m.url),
-						mediaUrl: mediaPath ?? (isPhoto ? `${m.url}?name=orig` : m.videoUrl)
-					},
-					style: { opacity: m.hasCache ? "1" : ".25" }
-				};
-				const sourcePostIconProps = {
-					className: "source-post-icon",
-					onclick: (e) => {
-						e.preventDefault();
-						e.stopPropagation();
-						open(m.parentUrl, '_blank');
-					}
-				};
-				const videoIconProps = {
-					className: "video-icon"
-				};
-				const removeIconProps = {
-					className: "remove",
-					onclick: (e) => {
-						e.preventDefault();
-						e.stopPropagation();
-						removeImageData(m.id);
-					}
-				};
-				const checkIconProps = {
-					className: `check-icon ${m.selected ? 'checked' : ''}`,
-					onclick: (e) => {
-						e.preventDefault();
-						e.stopPropagation();
-						checkImageData(m.id);
-						if (m.selected)
-							e.target.classList.add('checked');
-						else
-							e.target.classList.remove('checked');
-					}
-				};
-				const cachedIconProps = {
-					className: "cached-icon",
-				};
+			const mediaStore = Array.from(resultElm.children).map(e => ({ id: e.id, timestamp: e.dataset.timestamp }));
+			const appendMedias = medias.filter(m => !mediaStore.some(ms => ms.id === m.id));
+			const updateMedias = medias.filter(m => mediaStore.some(ms => ms.id === m.id && ms.timestamp !== m.timestamp));
+			const removeMedias = mediaStore.filter(m => !medias.some(ms => ms.id === m.id));
 
-				const durationElement = (() => {
-					if (m.durationMillis === undefined) return undefined;
+			removeThumbnail(resultElm, removeMedias);
+			replaceThumbnail(resultElm, updateMedias, backendUri);
+			appendThumbnail(resultElm, appendMedias, backendUri);
 
-					const seconds = m.durationMillis / 1000;
-					const duration = `${seconds / 60 | 0}:${String(seconds % 60 | 0).padStart(2, "0")}`;
-					return ce("span", { className: "duration-frame" }, duration);
-				})();
-
-				resultElm.appendChild(applyObserve(ce("div", cellProps,
-					ce("span", sourcePostIconProps, "🔗"),
-					ce("span", videoIconProps, !isPhoto ? "🎞️" : ""),
-					ce("span", removeIconProps, "✖"),
-					ce("span", checkIconProps, "✔"),
-					m.hasCache && ce("span", cachedIconProps, "🆗"),
-					durationElement
-				)));
-			});
+			if (appendMedias.length + updateMedias.length + removeMedias.length > 0)
+				Array.from(resultElm.children).sort((a, b) => b.dataset.timestamp - a.dataset.timestamp).forEach(e => resultElm.appendChild(e));
 		});
 	});
 };
