@@ -165,7 +165,7 @@ article>header {
     background-color: #333;
 }
 
-#config-dialog {
+.dialog {
     position: fixed;
     display: flex;
     flex-direction: column;
@@ -185,7 +185,7 @@ article>header {
     z-index: 1000;
 }
 
-#config-dialog.open {
+.dialog.open {
     top: 0;
     visibility: visible;
     opacity: 100;

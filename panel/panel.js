@@ -237,6 +237,10 @@ const openConfigDialog = () => {
 	});
 };
 
+const openRemoveDialog = () => {
+	$('remove-dialog').classList.toggle("open");
+};
+
 const applyConfig = () => {
 	const config = {
 		backendAddress: backendApi.normalizeBackendAddress($("backend-address").value)
@@ -248,6 +252,21 @@ const applyConfig = () => {
 			console.error(e);
 		})
 		.finally(() => $('config-dialog').classList.remove("open"));
+};
+
+const removeCachedImages = () => {
+	chrome.storage.local.get("medias", result => {
+		const medias = result.medias;
+		if (!(medias instanceof Array)) return;
+
+		backendApi.DELETE(`/api/media/cached`);
+		chrome.storage.local.set({ medias: medias.filter(m => !m.hasCache) }, () => updatePanel());
+	});
+};
+
+const removeAllImages = () => {
+	backendApi.DELETE(`/api/media`);
+	chrome.storage.local.set({ medias: [] }, () => updatePanel());
 };
 
 addEventListener('load', () => {
@@ -268,12 +287,11 @@ $("change-order").addEventListener('click', () => changeOrder());
 $("export-all-data").addEventListener('click', () => exportAllData());
 $("import-all-data").addEventListener('click', () => $("upload-all-data").click());
 $("upload-all-data").addEventListener('change', e => importAllData(e?.target?.files));
-$("all-remove-button").addEventListener('click', () => {
-	backendApi.DELETE(`/api/media`);
-	chrome.storage.local.set({ medias: [] }, () => updatePanel());
-});
+$("all-remove-button").addEventListener('click', () => openRemoveDialog());
 
 $("apply-config").addEventListener('click', () => applyConfig());
+$("remove-cached-images").addEventListener('click', () => removeCachedImages());
+$("remove-all-images").addEventListener('click', () => removeAllImages());
 
 /**
  * Recieve message
