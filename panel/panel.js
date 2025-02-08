@@ -59,6 +59,16 @@ const removeImageData = id => {
 	});
 };
 
+const deleteCacheFile = (id, completed = () => duplicatePanel()) => {
+	chrome.storage.local.get("medias", result => {
+		const medias = result.medias.filter(m => m.id !== id);
+
+		backendApi.DELETE(`/api/cache-file/${id}`).then(() => {
+			chrome.storage.local.set({ medias }, completed);
+		});
+	});
+};
+
 const checkImageData = id => {
 	chrome.storage.local.get("medias", result => {
 		const medias = result.medias;
@@ -201,6 +211,132 @@ const updatePanel = () => {
 	});
 };
 
+const buildDuplicatedThumbnail = (media, backendUri, deleteCompleted) => {
+	const isPhoto = media.type === 'photo';
+	const thumbPath = !backendUri || !media.thumbPath ? undefined : `${backendUri}/${media.thumbPath}`;
+	const mediaPath = !backendUri || !media.mediaPath ? undefined : `${backendUri}/${media.mediaPath}`;
+	const cellProps = {
+		id: media.id,
+		className: "thumb",
+		dataset: {
+			timestamp: media.timestamp,
+			hasCache: media.hasCache,
+			thumbUrl: thumbPath ?? thumbnailUrl(media.url),
+			mediaUrl: mediaPath ?? (isPhoto ? `${media.url}?name=orig` : media.videoUrl),
+		},
+		style: { opacity: media.hasCache ? "1" : ".25" }
+	};
+	const sourcePostIconProps = {
+		className: "source-post-icon",
+		onclick: (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+			open(media.parentUrl, '_blank');
+		}
+	};
+	const videoIconProps = {
+		className: "video-icon"
+	};
+	const deleteIconProps = {
+		className: "delete",
+		onclick: (e) => {
+			e.preventDefault();
+			e.stopPropagation();
+			deleteCacheFile(media.id, deleteCompleted);
+		}
+	};
+
+	const durationElement = (() => {
+		if (media.durationMillis === undefined) return undefined;
+
+		const seconds = media.durationMillis / 1000;
+		const duration = `${seconds / 60 | 0}:${String(seconds % 60 | 0).padStart(2, "0")}`;
+		return ce("span", { className: "duration-frame" }, duration);
+	})();
+
+	return applyObserve(ce("div", cellProps,
+		ce("span", sourcePostIconProps, "🔗"),
+		ce("span", videoIconProps, !isPhoto ? "🎞️" : ""),
+		ce("span", deleteIconProps, "🚮"),
+		durationElement
+	));
+};
+
+const duplicatePanel = () => {
+	chrome.storage.local.get("config", result => {
+		const backendUri = result?.config?.backendAddress;
+		backendApi.GET("/api/media/duplicated")
+			.then(mediaSetList => {
+				const resultElm = $('result');
+				resultElm.classList.remove('result-thumbs');
+				resultElm.replaceChildren();
+
+				$("mode-header").textContent = `Set: ${mediaSetList.length}`;
+
+				resultElm.appendChild(ce(null, null,
+					mediaSetList.map(mediaSet => ce("div",
+						{ className: "duplicated-media-set result-thumbs" },
+						mediaSet.map(m => buildDuplicatedThumbnail(m, backendUri)
+						)
+					))
+				));
+			})
+			.catch(console.error);
+	});
+};
+
+const duplicatePanelFromFile = file => {
+	chrome.storage.local.get("config", result => {
+		const backendUri = result?.config?.backendAddress;
+
+		if (!file || file.type !== 'application/json') {
+			alert('Please select the JSON file.');
+			return;
+		}
+
+		const formData = new FormData();
+		formData.append('file', file);
+		const reader = new FileReader();
+		reader.onload = async event => {
+			try {
+				const resultElm = $('result');
+				resultElm.classList.remove('result-thumbs');
+				resultElm.replaceChildren();
+
+				const fileContent = JSON.parse(event.target.result);
+				const mediaSetList = (await backendApi.POST("/api/media/duplicated", fileContent)).filter(v => v.length >= 2);
+
+				$("mode-header").textContent = `Set: ${mediaSetList.length}`;
+
+				resultElm.appendChild(ce(null, null,
+					mediaSetList.map(mediaSet => ce("div",
+						{ className: "duplicated-media-set result-thumbs" },
+						mediaSet
+							.sort((a, b) => {
+								const durationMillis = b.durationMillis - a.durationMillis;
+								return durationMillis ? durationMillis : a.timestamp - b.timestamp;
+							})
+							.map(m => buildDuplicatedThumbnail(m, backendUri, () => {
+								const element = document.getElementById(m.id);
+								if (element) {
+									const parent = element.parentNode;
+									parent.removeChild(element);
+									if (parent.children.length <= 1) {
+										parent.parentNode.removeChild(parent);
+										$("mode-header").textContent = `Set: ${document.querySelectorAll('.duplicated-media-set').length}`;
+									}
+								}
+							}))
+					))
+				));
+			} catch (e) {
+				console.error(e);
+			}
+		};
+		reader.readAsText(file);
+	});
+};
+
 const exportURLs = () => {
 	chrome.storage.local.get("medias", result => {
 		const medias = result.medias;
@@ -260,6 +396,12 @@ const importAllData = files => {
 	});
 };
 
+const openOperatorDialog = () => {
+	document.querySelector('.hamburger').classList.toggle('active');
+	$('operator-dialog').classList.toggle("open");
+};
+
+
 const openConfigDialog = () => {
 	chrome.storage.local.get("config", result => {
 		const backendAddress = result?.config?.backendAddress;
@@ -303,6 +445,20 @@ const removeAllImages = () => {
 };
 
 addEventListener('load', () => {
+	addEventListener('dragover', e => {
+		e.stopPropagation();
+		e.preventDefault();
+		e.dataTransfer.dropEffect = 'copy';
+	}, false);
+	addEventListener('drop', e => {
+		e.stopPropagation();
+		e.preventDefault();
+
+		const files = e.dataTransfer.files;
+		if (files.length > 0)
+			duplicatePanelFromFile(files[0]);
+	}, false);
+
 	chrome.storage.local.get("medias", result => {
 		const medias = result?.medias ?? [];
 
@@ -313,8 +469,8 @@ addEventListener('load', () => {
 	});
 });
 
-$("export-urls").addEventListener('click', () => exportURLs());
-$("clear-select").addEventListener('click', () => clearSelect());
+$("open-operator-dialog").addEventListener('click', () => openOperatorDialog());
+$("duplicated-media-set").querySelector('input[type="checkbox"]').addEventListener('change', e => e.target.checked ? duplicatePanel() : updatePanel());
 $("open-config-dialog").addEventListener('click', () => openConfigDialog());
 $("change-order").addEventListener('click', () => changeOrder());
 $("export-all-data").addEventListener('click', () => exportAllData());
@@ -322,6 +478,8 @@ $("import-all-data").addEventListener('click', () => $("upload-all-data").click(
 $("upload-all-data").addEventListener('change', e => importAllData(e?.target?.files));
 $("all-remove-button").addEventListener('click', () => openRemoveDialog());
 
+$("export-urls").addEventListener('click', () => exportURLs());
+$("clear-select").addEventListener('click', () => clearSelect());
 $("apply-config").addEventListener('click', () => applyConfig());
 $("remove-cached-images").addEventListener('click', () => removeCachedImages());
 $("remove-all-images").addEventListener('click', () => removeAllImages());
