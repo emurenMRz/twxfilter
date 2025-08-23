@@ -43,3 +43,18 @@ export const createElement = (tag, props, ...children) => {
 
 	return e;
 };
+
+export const applyObserve = element => {
+	const observer = new IntersectionObserver(entries => {
+		entries.forEach(entry => {
+			if (!entry.isIntersecting) return;
+			if (element.onclick) return;
+
+			const { thumbUrl, mediaUrl } = element.dataset;
+			element.style.backgroundImage = `url("${thumbUrl}")`;
+			element.onclick = () => open(mediaUrl, '_blank');
+		});
+	});
+	observer.observe(element);
+	return element;
+};
