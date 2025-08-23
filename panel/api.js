@@ -6,8 +6,12 @@ export const normalizeBackendAddress = backendAddress => {
 	return backendAddress[backendAddress.length - 1] === "/" ? backendAddress.substring(0, backendAddress.length - 1) : backendAddress;
 };
 
-const validEndpoint = async endpoint => {
-	const { backendAddress } = (await chrome.storage.local.get("config")).config;
+const validEndpoint = async (endpoint, overrideBackendAddress) => {
+	let backendAddress = overrideBackendAddress;
+	if (!backendAddress) {
+		const config = (await chrome.storage.local.get("config")).config;
+		backendAddress = config?.backendAddress;
+	}
 
 	if (!backendAddress) return;
 	if (typeof endpoint !== 'string') throw new TypeError(`endpoint is not string: ${endpoint}`);
@@ -22,8 +26,9 @@ const parseResponse = r => {
 	return r.headers.get("Content-Type").includes("application/json") ? r.json() : r.text();
 };
 
-export const GET = async (endpoint, params) => {
-	const ep = await validEndpoint(endpoint);
+export const GET = async (endpoint, params, options = {}) => {
+	const { overrideBackendAddress } = options;
+	const ep = await validEndpoint(endpoint, overrideBackendAddress);
 	if (!ep) return;
 	if (!params) return await fetch(ep).then(parseResponse);
 
@@ -34,8 +39,9 @@ export const GET = async (endpoint, params) => {
 	return await fetch(`${ep}?${query}`).then(parseResponse);
 };
 
-export const POST = async (endpoint, data) => {
-	const ep = await validEndpoint(endpoint);
+export const POST = async (endpoint, data, options = {}) => {
+	const { overrideBackendAddress } = options;
+	const ep = await validEndpoint(endpoint, overrideBackendAddress);
 	if (!ep) return;
 	if (!data) return;
 
@@ -52,8 +58,9 @@ export const POST = async (endpoint, data) => {
 	}).then(parseResponse);
 };
 
-export const DELETE = async (endpoint) => {
-	const ep = await validEndpoint(endpoint);
+export const DELETE = async (endpoint, options = {}) => {
+	const { overrideBackendAddress } = options;
+	const ep = await validEndpoint(endpoint, overrideBackendAddress);
 	if (!ep) return;
 
 	return await fetch(ep, { method: "DELETE" }).then(parseResponse);

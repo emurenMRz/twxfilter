@@ -416,6 +416,29 @@ const openRemoveDialog = () => {
 	$('remove-dialog').classList.toggle("open");
 };
 
+const testBackendConnection = async () => {
+	const resultElm = $('config-test-result');
+	try {
+		const backendAddress = $('backend-address').value;
+		if (!backendAddress) {
+			throw new Error("Backend address is not set.");
+		}
+		const normalizedAddress = backendApi.normalizeBackendAddress(backendAddress);
+
+		resultElm.textContent = "Testing...";
+		resultElm.style.color = "orange";
+
+		await backendApi.GET("/api/media/duplicated", null, { overrideBackendAddress: normalizedAddress });
+
+		resultElm.textContent = "Success!";
+		resultElm.style.color = "green";
+	} catch (e) {
+		resultElm.textContent = `Failed: ${e.message}`;
+		resultElm.style.color = "red";
+		console.error(e);
+	}
+};
+
 const applyConfig = () => {
 	const config = {
 		backendAddress: backendApi.normalizeBackendAddress($("backend-address").value)
@@ -426,7 +449,10 @@ const applyConfig = () => {
 			alert(e.message);
 			console.error(e);
 		})
-		.finally(() => $("config-dialog").classList.remove("open"));
+		.finally(() => {
+			$("config-dialog").classList.remove("open");
+			$('config-test-result').textContent = "";
+		});
 };
 
 const removeCachedImages = () => {
@@ -480,6 +506,7 @@ $("all-remove-button").addEventListener('click', () => openRemoveDialog());
 
 $("export-urls").addEventListener('click', () => exportURLs());
 $("clear-select").addEventListener('click', () => clearSelect());
+$("test-config").addEventListener('click', () => testBackendConnection());
 $("apply-config").addEventListener('click', () => applyConfig());
 $("remove-cached-images").addEventListener('click', () => removeCachedImages());
 $("remove-all-images").addEventListener('click', () => removeAllImages());
