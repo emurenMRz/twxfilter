@@ -396,6 +396,28 @@ const importAllData = files => {
 	});
 };
 
+const updateBackendFeatureState = config => {
+	const backendConfigured = !!(config && config.backendAddress);
+	const title = backendConfigured ? "" : "Backend not configured";
+
+	const duplicatedMediaLabel = $('duplicated-media-set');
+	const duplicatedMediaCheckbox = duplicatedMediaLabel.querySelector('input[type="checkbox"]');
+	duplicatedMediaCheckbox.disabled = !backendConfigured;
+	duplicatedMediaLabel.title = title;
+	if (!backendConfigured && duplicatedMediaCheckbox.checked) {
+		duplicatedMediaCheckbox.checked = false;
+		updatePanel();
+	}
+
+	$('import-all-data').disabled = !backendConfigured;
+	$('remove-cached-images').disabled = !backendConfigured;
+	$('remove-all-images').disabled = !backendConfigured;
+
+	$('import-all-data').title = title;
+	$('remove-cached-images').title = title;
+	$('remove-all-images').title = title;
+};
+
 const openOperatorDialog = () => {
 	document.querySelector('.hamburger').classList.toggle('active');
 	$('operator-dialog').classList.toggle("open");
@@ -404,9 +426,11 @@ const openOperatorDialog = () => {
 
 const openConfigDialog = () => {
 	chrome.storage.local.get("config", result => {
-		const backendAddress = result?.config?.backendAddress;
+		const config = result?.config;
+		const backendAddress = config?.backendAddress;
 
 		$("backend-address").value = backendAddress ?? "";
+		updateBackendFeatureState(config);
 
 		$('config-dialog').classList.toggle("open");
 	});
@@ -445,6 +469,9 @@ const applyConfig = () => {
 	};
 
 	chrome.storage.local.set({ config })
+		.then(() => {
+			updateBackendFeatureState(config);
+		})
 		.catch(e => {
 			alert(e.message);
 			console.error(e);
@@ -485,8 +512,11 @@ addEventListener('load', () => {
 			duplicatePanelFromFile(files[0]);
 	}, false);
 
-	chrome.storage.local.get("medias", result => {
+	chrome.storage.local.get(["medias", "config"], result => {
 		const medias = result?.medias ?? [];
+		const config = result?.config;
+
+		updateBackendFeatureState(config);
 
 		backendApi.POST("/api/media", medias)
 			.then(medias => chrome.storage.local.set({ medias }))
