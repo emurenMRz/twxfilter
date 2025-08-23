@@ -110,7 +110,9 @@ const applyObserve = element => {
 	return element;
 };
 
-const buildThumbnail = (media, backendUri) => {
+const buildThumbnail = (media, backendUri, options = {}) => {
+	const { view = 'normal', deleteCompleted } = options;
+
 	const isPhoto = media.type === 'photo';
 	const thumbPath = !backendUri || !media.thumbPath ? undefined : `${backendUri}/${media.thumbPath}`;
 	const mediaPath = !backendUri || !media.mediaPath ? undefined : `${backendUri}/${media.mediaPath}`;
@@ -136,29 +138,6 @@ const buildThumbnail = (media, backendUri) => {
 	const videoIconProps = {
 		className: "video-icon"
 	};
-	const removeIconProps = {
-		className: "remove",
-		onclick: (e) => {
-			e.preventDefault();
-			e.stopPropagation();
-			removeImageData(media.id);
-		}
-	};
-	const checkIconProps = {
-		className: `check-icon ${media.selected ? 'checked' : ''}`,
-		onclick: (e) => {
-			e.preventDefault();
-			e.stopPropagation();
-			checkImageData(media.id);
-			if (media.selected)
-				e.target.classList.add('checked');
-			else
-				e.target.classList.remove('checked');
-		}
-	};
-	const cachedIconProps = {
-		className: "cached-icon",
-	};
 
 	const durationElement = (() => {
 		if (media.durationMillis === undefined) return undefined;
@@ -168,14 +147,55 @@ const buildThumbnail = (media, backendUri) => {
 		return ce("span", { className: "duration-frame" }, duration);
 	})();
 
-	return applyObserve(ce("div", cellProps,
+	const children = [
 		ce("span", sourcePostIconProps, "🔗"),
-		ce("span", videoIconProps, !isPhoto ? "🎞️" : ""),
-		ce("span", removeIconProps, "✖"),
-		ce("span", checkIconProps, "✔"),
-		media.hasCache && ce("span", cachedIconProps, "🆗"),
-		durationElement
-	));
+		ce("span", videoIconProps, !isPhoto ? " 🎞️" : "")
+	];
+
+	if (view === 'normal') {
+		const removeIconProps = {
+			className: "remove",
+			onclick: (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				removeImageData(media.id);
+			}
+		};
+		const checkIconProps = {
+			className: `check-icon ${media.selected ? 'checked' : ''}`,
+			onclick: (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				checkImageData(media.id);
+				if (media.selected)
+					e.target.classList.add('checked');
+				else
+					e.target.classList.remove('checked');
+			}
+		};
+		children.push(ce("span", removeIconProps, "✖"));
+		children.push(ce("span", checkIconProps, "✔"));
+		if (media.hasCache) {
+			const cachedIconProps = { className: "cached-icon" };
+			children.push(ce("span", cachedIconProps, "🆗"));
+		}
+	} else { // 'duplicate' view
+		const deleteIconProps = {
+			className: "delete",
+			onclick: (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				deleteCacheFile(media.id, deleteCompleted);
+			}
+		};
+		children.push(ce("span", deleteIconProps, "🚮"));
+	}
+
+	if (durationElement) {
+		children.push(durationElement);
+	}
+
+	return applyObserve(ce("div", cellProps, ...children));
 };
 
 const appendThumbnail = (resultElm, appendMedias, backendUri) => {
@@ -202,7 +222,7 @@ const updatePanel = () => {
 
 		chrome.storage.local.get("medias", result => {
 			const medias = result.medias;
-			const resultElm = $('result');
+			const resultElm = $("result");
 
 			if (!(medias instanceof Array) || medias.length === 0) {
 				resultElm.replaceChildren();
@@ -228,63 +248,12 @@ const updatePanel = () => {
 	});
 };
 
-const buildDuplicatedThumbnail = (media, backendUri, deleteCompleted) => {
-	const isPhoto = media.type === 'photo';
-	const thumbPath = !backendUri || !media.thumbPath ? undefined : `${backendUri}/${media.thumbPath}`;
-	const mediaPath = !backendUri || !media.mediaPath ? undefined : `${backendUri}/${media.mediaPath}`;
-	const cellProps = {
-		id: media.id,
-		className: "thumb",
-		dataset: {
-			timestamp: media.timestamp,
-			hasCache: media.hasCache,
-			thumbUrl: thumbPath ?? thumbnailUrl(media.url),
-			mediaUrl: mediaPath ?? (isPhoto ? `${media.url}?name=orig` : media.videoUrl),
-		},
-		style: { opacity: media.hasCache ? "1" : ".25" }
-	};
-	const sourcePostIconProps = {
-		className: "source-post-icon",
-		onclick: (e) => {
-			e.preventDefault();
-			e.stopPropagation();
-			open(media.parentUrl, '_blank');
-		}
-	};
-	const videoIconProps = {
-		className: "video-icon"
-	};
-	const deleteIconProps = {
-		className: "delete",
-		onclick: (e) => {
-			e.preventDefault();
-			e.stopPropagation();
-			deleteCacheFile(media.id, deleteCompleted);
-		}
-	};
-
-	const durationElement = (() => {
-		if (media.durationMillis === undefined) return undefined;
-
-		const seconds = media.durationMillis / 1000;
-		const duration = `${seconds / 60 | 0}:${String(seconds % 60 | 0).padStart(2, "0")}`;
-		return ce("span", { className: "duration-frame" }, duration);
-	})();
-
-	return applyObserve(ce("div", cellProps,
-		ce("span", sourcePostIconProps, "🔗"),
-		ce("span", videoIconProps, !isPhoto ? "🎞️" : ""),
-		ce("span", deleteIconProps, "🚮"),
-		durationElement
-	));
-};
-
 const duplicatePanel = () => {
 	chrome.storage.local.get("config", result => {
 		const backendUri = result?.config?.backendAddress;
 		backendApi.GET("/api/media/duplicated")
 			.then(mediaSetList => {
-				const resultElm = $('result');
+				const resultElm = $("result");
 				resultElm.classList.remove('result-thumbs');
 				resultElm.replaceChildren();
 
@@ -293,8 +262,7 @@ const duplicatePanel = () => {
 				resultElm.appendChild(ce(null, null,
 					mediaSetList.map(mediaSet => ce("div",
 						{ className: "duplicated-media-set result-thumbs" },
-						mediaSet.map(m => buildDuplicatedThumbnail(m, backendUri)
-						)
+						mediaSet.map(m => buildThumbnail(m, backendUri, { view: 'duplicate' }))
 					))
 				));
 			})
@@ -314,7 +282,7 @@ const duplicatePanelFromFile = file => {
 		const reader = new FileReader();
 		reader.onload = async event => {
 			try {
-				const resultElm = $('result');
+				const resultElm = $("result");
 				resultElm.classList.remove('result-thumbs');
 				resultElm.replaceChildren();
 
@@ -334,14 +302,17 @@ const duplicatePanelFromFile = file => {
 								const durationMillis = b.durationMillis - a.durationMillis;
 								return durationMillis ? durationMillis : a.timestamp - b.timestamp;
 							})
-							.map(m => buildDuplicatedThumbnail(m, backendUri, () => {
-								const element = document.getElementById(m.id);
-								if (element) {
-									const parent = element.parentNode;
-									parent.removeChild(element);
-									if (parent.children.length <= 1) {
-										parent.parentNode.removeChild(parent);
-										$("mode-header").textContent = `Set: ${document.querySelectorAll('.duplicated-media-set').length}`;
+							.map(m => buildThumbnail(m, backendUri, {
+								view: 'duplicate',
+								deleteCompleted: () => {
+									const element = document.getElementById(m.id);
+									if (element) {
+										const parent = element.parentNode;
+										parent.removeChild(element);
+										if (parent.children.length <= 1) {
+											parent.parentNode.removeChild(parent);
+											$("mode-header").textContent = `Set: ${document.querySelectorAll('.duplicated-media-set').length}`;
+										}
 									}
 								}
 							}))
@@ -455,7 +426,7 @@ const applyConfig = () => {
 			alert(e.message);
 			console.error(e);
 		})
-		.finally(() => $('config-dialog').classList.remove("open"));
+		.finally(() => $("config-dialog").classList.remove("open"));
 };
 
 const removeCachedImages = () => {
