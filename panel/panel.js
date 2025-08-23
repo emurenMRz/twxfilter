@@ -1,6 +1,11 @@
 import { $, createElement as ce } from "./dom.js";
 import backendApi from "./api.js";
 
+const showError = message => {
+	console.error(message);
+	alert(message);
+};
+
 const canUseLocalStorage = chrome.storage !== undefined && chrome.storage.local !== undefined;
 
 chrome.devtools.inspectedWindow.eval(`console.log('canUseLocalStorage: ${JSON.stringify(canUseLocalStorage)}');`);
@@ -281,7 +286,7 @@ const duplicatePanel = () => {
 					))
 				));
 			})
-			.catch(console.error);
+			.catch(e => showError(`Failed to get duplicated media: ${e.message}`));
 	});
 };
 
@@ -330,7 +335,7 @@ const duplicatePanelFromFile = file => {
 					))
 				));
 			} catch (e) {
-				console.error(e);
+				showError(`Failed to process duplicated media from file: ${e.message}`);
 			}
 		};
 		reader.readAsText(file);
@@ -464,7 +469,7 @@ addEventListener('load', () => {
 
 		backendApi.POST("/api/media", medias)
 			.then(medias => chrome.storage.local.set({ medias }))
-			.catch(console.error)
+			.catch(e => showError(`Failed to sync media with backend: ${e.message}`))
 			.finally(() => updatePanel());
 	});
 });
