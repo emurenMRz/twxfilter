@@ -6,6 +6,18 @@ const showError = message => {
 	alert(message);
 };
 
+const isValidMediaObject = obj => {
+	return obj &&
+		typeof obj.id === 'string' &&
+		typeof obj.type === 'string' &&
+		typeof obj.url === 'string' &&
+		typeof obj.parentUrl === 'string';
+};
+
+const isValidMediasArray = arr => {
+	return Array.isArray(arr) && arr.every(isValidMediaObject);
+};
+
 const canUseLocalStorage = chrome.storage !== undefined && chrome.storage.local !== undefined;
 
 chrome.devtools.inspectedWindow.eval(`console.log('canUseLocalStorage: ${JSON.stringify(canUseLocalStorage)}');`);
@@ -295,12 +307,10 @@ const duplicatePanelFromFile = file => {
 		const backendUri = result?.config?.backendAddress;
 
 		if (!file || file.type !== 'application/json') {
-			alert('Please select the JSON file.');
+			showError('Please select a JSON file.');
 			return;
 		}
 
-		const formData = new FormData();
-		formData.append('file', file);
 		const reader = new FileReader();
 		reader.onload = async event => {
 			try {
@@ -309,6 +319,9 @@ const duplicatePanelFromFile = file => {
 				resultElm.replaceChildren();
 
 				const fileContent = JSON.parse(event.target.result);
+				if (!isValidMediasArray(fileContent)) {
+					throw new Error("Invalid or corrupted data file. The file should contain an array of media objects.");
+				}
 				const mediaSetList = (await backendApi.POST("/api/media/duplicated", fileContent)).filter(v => v.length >= 2);
 
 				$("mode-header").textContent = `Set: ${mediaSetList.length}`;
@@ -389,13 +402,24 @@ const exportAllData = () => {
 
 const importAllData = files => {
 	Array.from(files).forEach(file => {
-		if (file.type !== 'application/json') return;
+		if (file.type !== 'application/json') {
+			showError("Please select a JSON file.");
+			return;
+		}
 
 		const reader = new FileReader();
 		reader.onload = e => {
-			const medias = JSON.parse(e.target.result).sort(sortProc);
-			backendApi.POST("/api/media", medias);
-			chrome.storage.local.set({ medias }, () => updatePanel());
+			try {
+				const parsedData = JSON.parse(e.target.result);
+				if (!isValidMediasArray(parsedData)) {
+					throw new Error("Invalid or corrupted data file. The file should contain an array of media objects.");
+				}
+				const medias = parsedData.sort(sortProc);
+				backendApi.POST("/api/media", medias);
+				chrome.storage.local.set({ medias }, () => updatePanel());
+			} catch (err) {
+				showError(`Failed to import data: ${err.message}`);
+			}
 		};
 		reader.readAsText(file);
 	});
