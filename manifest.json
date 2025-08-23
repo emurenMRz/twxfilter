@@ -9,5 +9,6 @@
 	"host_permissions": [
 		"<all_urls>"
 	],
-	"devtools_page": "devtools.html"
+	"devtools_page": "devtools.html",
+	"options_page": "options.html"
 }

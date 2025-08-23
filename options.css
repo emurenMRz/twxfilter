@@ -1,0 +1,12 @@
+/* Styles for twxfilter options page */
+
+body {
+    font-family: sans-serif;
+    padding: 1em;
+}
+
+#media-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1em;
+}
