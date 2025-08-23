@@ -10,3 +10,58 @@ body {
     flex-direction: column;
     gap: 1em;
 }
+
+.date-header {
+    cursor: pointer;
+    background-color: #f0f0f0;
+    padding: 0.5em;
+    border-bottom: 1px solid #ccc;
+    margin-top: 1em;
+}
+
+.media-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid #eee;
+    transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+    opacity: 1;
+}
+
+.media-grid.collapsed {
+    max-height: 0;
+    opacity: 0;
+    padding: 0 10px; /* Keep horizontal padding */
+}
+
+/* Thumbnail styles (copied from panel.css) */
+.thumb {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    background-size: cover;
+    background-position: center;
+    border: 1px solid #ddd;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.thumb .source-post-icon,
+.thumb .video-icon,
+.thumb .delete {
+    position: absolute;
+    font-size: 1.2em;
+    padding: 5px;
+    background-color: rgba(0, 0, 0, 0.5);
+    color: white;
+    border-radius: 3px;
+    line-height: 1;
+}
+
+.thumb .source-post-icon { top: 5px; left: 5px; }
+.thumb .video-icon { top: 5px; right: 5px; }
+.thumb .delete { bottom: 5px; right: 5px; }
