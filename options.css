@@ -32,7 +32,8 @@ body {
 .media-grid.collapsed {
     max-height: 0;
     opacity: 0;
-    padding: 0 10px; /* Keep horizontal padding */
+    padding: 0 10px;
+    /* Keep horizontal padding */
 }
 
 /* Thumbnail styles (copied from panel.css) */
@@ -40,7 +41,8 @@ body {
     position: relative;
     width: 120px;
     height: 120px;
-    background-size: cover;
+    background-size: contain;
+    background-repeat: no-repeat;
     background-position: center;
     border: 1px solid #ddd;
     display: flex;
@@ -51,17 +53,50 @@ body {
 }
 
 .thumb .source-post-icon,
-.thumb .video-icon,
 .thumb .delete {
     position: absolute;
-    font-size: 1.2em;
-    padding: 5px;
-    background-color: rgba(0, 0, 0, 0.5);
-    color: white;
-    border-radius: 3px;
-    line-height: 1;
+    width: 1.25rem;
+    height: 1.25rem;
+    line-height: 1.25rem;
+    border-radius: 1rem;
+    font-size: 1rem;
+    text-align: center;
+    cursor: pointer;
+    z-index: 1000;
 }
 
-.thumb .source-post-icon { top: 5px; left: 5px; }
-.thumb .video-icon { top: 5px; right: 5px; }
-.thumb .delete { bottom: 5px; right: 5px; }
+.source-post-icon {
+    top: 0;
+    left: 0;
+
+    &:hover {
+        background-color: royalblue;
+    }
+}
+
+.video-icon {
+    font-size: 1.5rem;
+    z-index: 100;
+}
+
+.delete {
+    top: 0;
+    right: 0;
+    filter: grayscale(100%);
+
+    &:hover {
+        filter: grayscale(0);
+    }
+}
+
+.duration-frame {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    line-height: 1rem;
+    color: white;
+    background-color: rgba(0, 0, 0, .75);
+    text-align: center;
+    z-index: 500;
+}
