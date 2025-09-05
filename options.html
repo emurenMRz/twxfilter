@@ -6,8 +6,21 @@
     <link rel="stylesheet" href="options.css">
 </head>
 <body>
-    <h1>Cached Media</h1>
-    <main id="media-container"></main>
+    <div class="tab-container">
+        <div class="tab-nav">
+            <button class="tab-button active" data-tab="cached-media">Cached Media</button>
+            <button class="tab-button" data-tab="duplicated-media">Duplicated Media</button>
+        </div>
+        <div id="cached-media" class="tab-content active">
+            <main id="media-container"></main>
+        </div>
+        <div id="duplicated-media" class="tab-content">
+            <div id="drop-zone" class="drop-zone">
+                <p>Drop a JSON file here to find duplicated media.</p>
+            </div>
+            <main id="duplicated-media-container"></main>
+        </div>
+    </div>
     <script src="options.js" type="module"></script>
 </body>
 </html>

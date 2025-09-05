@@ -1,23 +1,7 @@
 import { $, createElement as ce } from "../common/dom.js";
 import backendApi from "../common/api.js";
 import { buildThumbnail } from "../common/thumbnail.js";
-
-const showError = message => {
-	console.error(message);
-	alert(message);
-};
-
-const isValidMediaObject = obj => {
-	return obj &&
-		typeof obj.id === 'string' &&
-		typeof obj.type === 'string' &&
-		typeof obj.url === 'string' &&
-		typeof obj.parentUrl === 'string';
-};
-
-const isValidMediasArray = arr => {
-	return Array.isArray(arr) && arr.every(isValidMediaObject);
-};
+import { showError, isValidMediasArray } from "../common/utils.js";
 
 const canUseLocalStorage = chrome.storage !== undefined && chrome.storage.local !== undefined;
 
@@ -62,16 +46,6 @@ const removeImageData = id => {
 		backendApi.DELETE(`/api/media/${id}`);
 
 		chrome.storage.local.set({ medias }, () => updatePanel());
-	});
-};
-
-const deleteCacheFile = (id, completed = () => duplicatePanel()) => {
-	chrome.storage.local.get("medias", result => {
-		const medias = result.medias.filter(m => m.id !== id);
-
-		backendApi.DELETE(`/api/cache-file/${id}`).then(() => {
-			chrome.storage.local.set({ medias }, completed);
-		});
 	});
 };
 
@@ -139,85 +113,6 @@ const updatePanel = () => {
 			if (appendMedias.length + updateMedias.length + removeMedias.length > 0)
 				Array.from(resultElm.children).sort((a, b) => b.dataset.timestamp - a.dataset.timestamp).forEach(e => resultElm.appendChild(e));
 		});
-	});
-};
-
-const duplicatePanel = () => {
-	chrome.storage.local.get("config", result => {
-		const backendUri = result?.config?.backendAddress;
-		backendApi.GET("/api/media/duplicated")
-			.then(mediaSetList => {
-				const resultElm = $("result");
-				resultElm.classList.remove('result-thumbs');
-				resultElm.replaceChildren();
-
-				$("mode-header").textContent = `Set: ${mediaSetList.length}`;
-
-				resultElm.appendChild(ce(null, null,
-					mediaSetList.map(mediaSet => ce("div",
-						{ className: "duplicated-media-set result-thumbs" },
-						mediaSet.map(m => buildThumbnail(m, backendUri, { view: 'duplicate', onDelete: deleteCacheFile }))
-					))
-				));
-			})
-			.catch(e => showError(`Failed to get duplicated media: ${e.message}`));
-	});
-};
-
-const duplicatePanelFromFile = file => {
-	chrome.storage.local.get("config", result => {
-		const backendUri = result?.config?.backendAddress;
-
-		if (!file || file.type !== 'application/json') {
-			showError('Please select a JSON file.');
-			return;
-		}
-
-		const reader = new FileReader();
-		reader.onload = async event => {
-			try {
-				const resultElm = $("result");
-				resultElm.classList.remove('result-thumbs');
-				resultElm.replaceChildren();
-
-				const fileContent = JSON.parse(event.target.result);
-				if (!isValidMediasArray(fileContent)) {
-					throw new Error("Invalid or corrupted data file. The file should contain an array of media objects.");
-				}
-				const mediaSetList = (await backendApi.POST("/api/media/duplicated", fileContent)).filter(v => v.length >= 2);
-
-				$("mode-header").textContent = `Set: ${mediaSetList.length}`;
-
-				resultElm.appendChild(ce(null, null,
-					mediaSetList.map(mediaSet => ce("div",
-						{ className: "duplicated-media-set result-thumbs" },
-						mediaSet
-							.sort((a, b) => {
-								const durationMillis = b.durationMillis - a.durationMillis;
-								return durationMillis ? durationMillis : a.timestamp - b.timestamp;
-							})
-							.map(m => buildThumbnail(m, backendUri, {
-								view: 'duplicate',
-								onDelete: deleteCacheFile,
-								deleteCompleted: () => {
-									const element = document.getElementById(m.id);
-									if (element) {
-										const parent = element.parentNode;
-										parent.removeChild(element);
-										if (parent.children.length <= 1) {
-											parent.parentNode.removeChild(parent);
-											$("mode-header").textContent = `Set: ${document.querySelectorAll('.duplicated-media-set').length}`;
-										}
-									}
-								}
-							}))
-					))
-				));
-			} catch (e) {
-				showError(`Failed to process duplicated media from file: ${e.message}`);
-			}
-		};
-		reader.readAsText(file);
 	});
 };
 
@@ -294,15 +189,6 @@ const importAllData = files => {
 const updateBackendFeatureState = config => {
 	const backendConfigured = !!(config && config.backendAddress);
 	const title = backendConfigured ? "" : "Backend not configured";
-
-	const duplicatedMediaLabel = $('duplicated-media-set');
-	const duplicatedMediaCheckbox = duplicatedMediaLabel.querySelector('input[type="checkbox"]');
-	duplicatedMediaCheckbox.disabled = !backendConfigured;
-	duplicatedMediaLabel.title = title;
-	if (!backendConfigured && duplicatedMediaCheckbox.checked) {
-		duplicatedMediaCheckbox.checked = false;
-		updatePanel();
-	}
 
 	$('import-all-data').disabled = !backendConfigured;
 	$('remove-cached-images').disabled = !backendConfigured;
@@ -393,20 +279,6 @@ const removeAllImages = () => {
 };
 
 addEventListener('load', () => {
-	addEventListener('dragover', e => {
-		e.stopPropagation();
-		e.preventDefault();
-		e.dataTransfer.dropEffect = 'copy';
-	}, false);
-	addEventListener('drop', e => {
-		e.stopPropagation();
-		e.preventDefault();
-
-		const files = e.dataTransfer.files;
-		if (files.length > 0)
-			duplicatePanelFromFile(files[0]);
-	}, false);
-
 	chrome.storage.local.get(["medias", "config"], result => {
 		const medias = result?.medias ?? [];
 		const config = result?.config;
@@ -421,7 +293,6 @@ addEventListener('load', () => {
 });
 
 $("open-operator-dialog").addEventListener('click', () => openOperatorDialog());
-$("duplicated-media-set").querySelector('input[type="checkbox"]').addEventListener('change', e => e.target.checked ? duplicatePanel() : updatePanel());
 $("open-config-dialog").addEventListener('click', () => openConfigDialog());
 $("change-order").addEventListener('click', () => changeOrder());
 $("export-all-data").addEventListener('click', () => exportAllData());

@@ -159,12 +159,6 @@ article>header {
     overflow-y: auto;
 }
 
-.duplicated-media-set {
-    margin: .25rem;
-    padding: .25rem;
-    border: 1px solid gray;
-}
-
 .result-thumbs {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
