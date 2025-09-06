@@ -93,4 +93,4 @@ chrome.devtools.network.onRequestFinished.addListener(
 /**
  * Create panel
  */
-chrome.devtools.panels.create("twxfilter", null, "panel/panel.html");
+chrome.devtools.panels.create("twxfilter", "icons/icon16.png", "panel/panel.html");
