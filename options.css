@@ -60,23 +60,30 @@ body {
     margin-top: 1em;
 }
 
+.accordion-body {
+    padding: 0;
+    margin: 0;
+    transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+    overflow: hidden;
+    max-height: 2000px; /* Arbitrary large value for open state */
+    opacity: 1;
+}
+
+.accordion-body.collapsed {
+    max-height: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
 .media-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     gap: 10px;
     padding: 10px;
     border: 1px solid #eee;
-    transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
-    opacity: 1;
+    border-top: none; /* The header has a bottom border */
 }
 
-.media-grid.collapsed {
-    max-height: 0;
-    opacity: 0;
-    padding: 0 10px;
-    pointer-events: none;
-    /* Keep horizontal padding */
-}
 
 .duplicated-media-set {
     margin: .25rem;
@@ -153,4 +160,52 @@ body {
     background-color: rgba(0, 0, 0, .75);
     text-align: center;
     z-index: 500;
+}
+
+/* Sort Options */
+.sort-options {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    padding: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+    z-index: 10000;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.sort-options fieldset {
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+.sort-options legend {
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    padding: 0;
+}
+
+.sort-group {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.sort-group:not(:last-child) {
+    margin-bottom: 0.5rem;
+}
+
+.sort-group span {
+    font-weight: 500;
+    width: 80px;
+}
+
+.sort-group label {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    cursor: pointer;
+    font-weight: normal;
 }

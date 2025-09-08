@@ -6,6 +6,21 @@
     <link rel="stylesheet" href="options.css">
 </head>
 <body>
+    <div class="sort-options">
+        <fieldset>
+            <legend>Sort Options</legend>
+            <div class="sort-group">
+                <span>Sort by:</span>
+                <label><input type="radio" name="sort-by" value="timestamp"> Timestamp</label>
+                <label><input type="radio" name="sort-by" value="content-length"> File Size</label>
+            </div>
+            <div class="sort-group">
+                <span>Order:</span>
+                <label><input type="radio" name="sort-order" value="desc"> Descending</label>
+                <label><input type="radio" name="sort-order" value="asc"> Ascending</label>
+            </div>
+        </fieldset>
+    </div>
     <div class="tab-container">
         <div class="tab-nav">
             <button class="tab-button active" data-tab="cached-media">Cached Media</button>

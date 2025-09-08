@@ -3,6 +3,12 @@ import backendApi from "./common/api.js";
 import { buildThumbnail } from "./common/thumbnail.js";
 import { showError, isValidMediasArray } from "./common/utils.js";
 
+// --- Globals for sorting --- //
+let mediaCache = {};
+let currentSort = { by: 'timestamp', order: 'desc' };
+const SORT_STORAGE_KEY = 'cachedMediaSortSettings';
+// ------------------------- //
+
 const deleteCacheFile = (id, completed) => {
     chrome.storage.local.get("medias", result => {
         const medias = result.medias.filter(m => m.id !== id);
@@ -90,8 +96,29 @@ const showDuplicatedMediaFromFile = (file, backendUri) => {
     reader.readAsText(file);
 };
 
+const sortMedia = (mediaData) => {
+    const { by, order } = currentSort;
+    const sortedData = [...mediaData]; // Create a shallow copy to avoid mutating original array
+
+    sortedData.sort((a, b) => {
+        let valA, valB;
+
+        if (by === 'timestamp') {
+            valA = a.timestamp;
+            valB = b.timestamp;
+        } else if (by === 'content-length') {
+            valA = a.contentLength || 0;
+            valB = b.contentLength || 0;
+        }
+
+        return order === 'desc' ? valB - valA : valA - valB;
+    });
+
+    return sortedData;
+};
+
 const renderMediaGrid = (mediaData, backendUri) => {
-    const mediaGrid = ce(null, { className: "media-grid" });
+    const mediaGrid = ce("div", { className: "media-grid" });
 
     mediaData.forEach(media => {
         const thumbnail = buildThumbnail(media, backendUri, {
@@ -101,10 +128,11 @@ const renderMediaGrid = (mediaData, backendUri) => {
                 // Remove the thumbnail from the DOM after successful deletion
                 const element = document.getElementById(media.id);
                 if (element) {
+                    const grid = element.closest('.media-grid');
                     element.remove();
                     // If the group becomes empty, remove the group header too
-                    if (mediaGrid.children.length === 0) {
-                        mediaGrid.remove();
+                    if (grid && grid.children.length === 0) {
+                        grid.remove();
                     }
                 }
             }
@@ -113,6 +141,45 @@ const renderMediaGrid = (mediaData, backendUri) => {
     });
 
     return mediaGrid;
+};
+
+const rerenderAllVisibleGrids = (backendUri) => {
+    const loadedAccordions = document.querySelectorAll('.tab-content .media-grid[data-date]');
+    loadedAccordions.forEach(grid => {
+        const date = grid.dataset.date;
+        if (mediaCache[date]) {
+            const sortedMedia = sortMedia(mediaCache[date]);
+            const newGrid = renderMediaGrid(sortedMedia, backendUri);
+            newGrid.dataset.date = date; // Keep the date reference
+            grid.replaceWith(newGrid);
+        }
+    });
+};
+
+const initSortControls = (backendUri) => {
+    const sortInputs = document.querySelectorAll('.sort-options input[name="sort-by"]');
+    const orderInputs = document.querySelectorAll('.sort-options input[name="sort-order"]');
+
+    const handleSortChange = () => {
+        const sortBy = document.querySelector('.sort-options input[name="sort-by"]:checked').value;
+        const sortOrder = document.querySelector('.sort-options input[name="sort-order"]:checked').value;
+        currentSort = { by: sortBy, order: sortOrder };
+        chrome.storage.sync.set({ [SORT_STORAGE_KEY]: currentSort });
+        rerenderAllVisibleGrids(backendUri);
+    };
+
+    chrome.storage.sync.get(SORT_STORAGE_KEY, (result) => {
+        const savedSort = result[SORT_STORAGE_KEY];
+        if (savedSort) {
+            currentSort = savedSort;
+        }
+
+        document.querySelector(`.sort-options input[name="sort-by"][value="${currentSort.by}"]`).checked = true;
+        document.querySelector(`.sort-options input[name="sort-order"][value="${currentSort.order}"]`).checked = true;
+
+        sortInputs.forEach(input => input.addEventListener('change', handleSortChange));
+        orderInputs.forEach(input => input.addEventListener('change', handleSortChange));
+    });
 };
 
 const renderCatalog = (catalogIndex, backendUri) => {
@@ -130,7 +197,7 @@ const renderCatalog = (catalogIndex, backendUri) => {
     sortedDates.forEach(date => {
         const accordionId = `accordion-${date}`;
         const accordionHeader = ce("h2", { className: "date-header" }, date);
-        const accordionBody = ce("div", { id: accordionId, className: "media-grid collapsed" });
+        const accordionBody = ce("div", { id: accordionId, className: "accordion-body collapsed" });
 
         accordionHeader.addEventListener('click', () => {
             const isCollapsed = accordionBody.classList.toggle('collapsed');
@@ -139,7 +206,10 @@ const renderCatalog = (catalogIndex, backendUri) => {
             if (!isCollapsed && !isLoaded) {
                 backendApi.GET(`/api/catalog/${date}`, null, { overrideBackendAddress: backendUri })
                     .then(media => {
-                        const mediaGrid = renderMediaGrid(media, backendUri);
+                        mediaCache[date] = media; // Cache the original data
+                        const sortedMedia = sortMedia(media);
+                        const mediaGrid = renderMediaGrid(sortedMedia, backendUri);
+                        mediaGrid.dataset.date = date; // Add date for re-rendering
                         accordionBody.appendChild(mediaGrid);
                         accordionBody.dataset.loaded = 'true';
                     })
@@ -160,6 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const tabButtons = document.querySelectorAll('.tab-button');
     const tabContents = document.querySelectorAll('.tab-content');
+    const sortOptions = document.querySelector('.sort-options');
 
     chrome.storage.local.get("config", result => {
         const backendUri = result?.config?.backendAddress;
@@ -167,6 +238,15 @@ document.addEventListener('DOMContentLoaded', () => {
             showError("Backend not configured. Please set it in the panel settings.");
             $('media-container').textContent = "Backend not configured. Please set it in the panel settings.";
             return;
+        }
+
+        initSortControls(backendUri);
+
+        // Set initial visibility of sort options
+        if (document.querySelector('.tab-button.active')?.dataset.tab === 'cached-media') {
+            sortOptions.style.display = 'block';
+        } else {
+            sortOptions.style.display = 'none';
         }
 
         tabButtons.forEach(button => {
@@ -177,6 +257,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 tabContents.forEach(content => content.classList.remove('active'));
                 const tabId = button.dataset.tab;
                 document.getElementById(tabId).classList.add('active');
+
+                if (tabId === 'cached-media') {
+                    sortOptions.style.display = 'block';
+                } else {
+                    sortOptions.style.display = 'none';
+                }
 
                 if (tabId === 'duplicated-media') {
                     showDuplicatedMedia(backendUri);
