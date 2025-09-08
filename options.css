@@ -162,8 +162,8 @@ body {
     z-index: 500;
 }
 
-/* Sort Options */
-.sort-options {
+/* Display Controls Panel */
+.controls-panel {
     position: fixed;
     top: 1rem;
     right: 1rem;
@@ -173,39 +173,53 @@ body {
     background-color: #f9f9f9;
     z-index: 10000;
     box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    width: 350px; /* Set a width to accommodate new options */
 }
 
-.sort-options fieldset {
+.controls-panel fieldset {
     border: none;
     padding: 0;
     margin: 0;
 }
 
-.sort-options legend {
+.controls-panel legend {
     font-weight: bold;
     margin-bottom: 0.5rem;
     padding: 0;
 }
 
-.sort-group {
+.control-separator {
+    border: none;
+    border-top: 1px solid #ddd;
+    margin: 1rem 0;
+}
+
+.control-group {
     display: flex;
-    align-items: center;
+    align-items: flex-start; /* Align to top for multi-line radio groups */
     gap: 1rem;
 }
 
-.sort-group:not(:last-child) {
-    margin-bottom: 0.5rem;
+.control-group:not(:last-child) {
+    margin-bottom: 0.75rem;
 }
 
-.sort-group span {
+.control-group span {
     font-weight: 500;
     width: 80px;
+    padding-top: 0.15em; /* Align with first line of radio buttons */
 }
 
-.sort-group label {
+.control-group label {
     display: flex;
     align-items: center;
     gap: 0.25rem;
     cursor: pointer;
     font-weight: normal;
+}
+
+.radio-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
 }
