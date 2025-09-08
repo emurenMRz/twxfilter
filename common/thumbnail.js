@@ -1,4 +1,5 @@
 import { createElement as ce, applyObserve } from "./dom.js";
+import { formatBytes } from "./utils.js";
 
 export const thumbnailUrl = url => {
 	if (!url.startsWith("https://pbs.twimg.com/media/")) return url;
@@ -35,6 +36,11 @@ export const buildThumbnail = (media, backendUri, options = {}) => {
 		},
 		style: { opacity: media.hasCache ? "1" : ".25" }
 	};
+
+	if (media.contentLength > 0) {
+		cellProps.title = formatBytes(media.contentLength);
+	}
+
 	const sourcePostIconProps = {
 		className: "source-post-icon",
 		onclick: (e) => {
