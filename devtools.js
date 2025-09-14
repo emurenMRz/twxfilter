@@ -7,7 +7,7 @@ const mediaParser = media => {
 		videoUrl: undefined,
 		durationMillis: undefined,
 		selected: false
-	}
+	};
 
 	if (media.type === "video" || media.type === "animated_gif") {
 		const variants = media.video_info?.variants;
@@ -17,7 +17,7 @@ const mediaParser = media => {
 		const maxBitrate = Math.max(...variants.map(variant => variant.bitrate | 0));
 		const variant = variants.find(variant => variant.bitrate === maxBitrate);
 		mediaData.videoUrl = variant.url;
-		mediaData.durationMillis = media.video_info?.duration_millis
+		mediaData.durationMillis = media.video_info?.duration_millis;
 	}
 
 	chrome.devtools.inspectedWindow.eval(`console.log('${JSON.stringify(mediaData)}');`);
@@ -43,7 +43,7 @@ const entryParser = entry => {
 			console.debug(`unifiedCard.value.type: ${unifiedCard.value.type}`);
 			if (unifiedCard.value.type === 'STRING') {
 				const card = JSON.parse(unifiedCard.value.string_value);
-				if (card.type === "video_website")
+				if (card.type === "video_website" || card.type === 'video_carousel_website')
 					return Object.values(card.media_entities);
 			}
 		}
@@ -66,7 +66,7 @@ const extractMedia = (url, contentType, content) => {
 	const o = JSON.parse(content);
 	const instructions = o.data.threaded_conversation_with_injections_v2.instructions;
 	instructions.forEach(timelineParesr);
-}
+};
 
 /**
  * Fetch request
