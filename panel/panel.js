@@ -2,10 +2,8 @@ import { $, createElement as ce } from "../common/dom.js";
 import backendApi from "../common/api.js";
 import { buildThumbnail } from "../common/thumbnail.js";
 import { showError, isValidMediasArray } from "../common/utils.js";
-
-const canUseLocalStorage = chrome.storage !== undefined && chrome.storage.local !== undefined;
-
-chrome.devtools.inspectedWindow.eval(`console.log('canUseLocalStorage: ${JSON.stringify(canUseLocalStorage)}');`);
+import { buildFollowerElement, storeFollowers } from "./followers.js";
+import { canUseLocalStorage } from "./utils.js";
 
 const sortProc = (a, b) => {
 	if (!a.timestamp && !b.timestamp) return 0;
@@ -88,30 +86,46 @@ const updatePanel = () => {
 	chrome.storage.local.get("config", result => {
 		const backendUri = result?.config?.backendAddress;
 
-		chrome.storage.local.get("medias", result => {
-			const medias = result.medias;
+		// mode: medias | followers
+		chrome.storage.local.get("mode", ({ mode = 'medias' }) => {
 			const resultElm = $("result");
+			resultElm.className = '';
+			if (mode === 'medias') {
+				chrome.storage.local.get("medias", result => {
+					const medias = result.medias;
+					if (!(medias instanceof Array) || medias.length === 0) {
+						resultElm.replaceChildren();
+						return;
+					}
 
-			if (!(medias instanceof Array) || medias.length === 0) {
-				resultElm.replaceChildren();
-				return;
+					$("mode-header").textContent = `Thumbs: ${medias.length} Photo: ${medias.filter(m => m.type === 'photo').length}`;
+					resultElm.classList.add('result-thumbs');
+
+					const mediaStore = Array.from(resultElm.children).map(e => ({ id: e.id, timestamp: e.dataset.timestamp }));
+					const appendMedias = medias.filter(m => !mediaStore.some(ms => ms.id === m.id));
+					const updateMedias = medias.filter(m => mediaStore.some(ms => ms.id === m.id && ms.timestamp !== m.timestamp));
+					const removeMedias = mediaStore.filter(m => !medias.some(ms => ms.id === m.id));
+
+					removeThumbnail(resultElm, removeMedias);
+					replaceThumbnail(resultElm, updateMedias, backendUri);
+					appendThumbnail(resultElm, appendMedias, backendUri);
+
+					if (appendMedias.length + updateMedias.length + removeMedias.length > 0)
+						Array.from(resultElm.children).sort((a, b) => b.dataset.timestamp - a.dataset.timestamp).forEach(e => resultElm.appendChild(e));
+				});
+			} else if (mode === 'followers') {
+				// render followers list
+				chrome.storage.local.get('followers', result => {
+					const followersStore = result.followers ?? {};
+					const followersArr = Object.values(followersStore);
+					$("mode-header").textContent = `Followers: ${followersArr.length}`;
+					resultElm.classList.add('result-followers');
+					resultElm.replaceChildren();
+					followersArr
+						.sort((a, b) => Number(BigInt(b.meta.sortIndex) - BigInt(a.meta.sortIndex)))
+						.forEach(f => resultElm.appendChild(buildFollowerElement(f.detail)));
+				});
 			}
-
-			$("mode-header").textContent = `Thumbs: ${medias.length} Photo: ${medias.filter(m => m.type === 'photo').length}`;
-
-			resultElm.classList.add('result-thumbs');
-
-			const mediaStore = Array.from(resultElm.children).map(e => ({ id: e.id, timestamp: e.dataset.timestamp }));
-			const appendMedias = medias.filter(m => !mediaStore.some(ms => ms.id === m.id));
-			const updateMedias = medias.filter(m => mediaStore.some(ms => ms.id === m.id && ms.timestamp !== m.timestamp));
-			const removeMedias = mediaStore.filter(m => !medias.some(ms => ms.id === m.id));
-
-			removeThumbnail(resultElm, removeMedias);
-			replaceThumbnail(resultElm, updateMedias, backendUri);
-			appendThumbnail(resultElm, appendMedias, backendUri);
-
-			if (appendMedias.length + updateMedias.length + removeMedias.length > 0)
-				Array.from(resultElm.children).sort((a, b) => b.dataset.timestamp - a.dataset.timestamp).forEach(e => resultElm.appendChild(e));
 		});
 	});
 };
@@ -288,7 +302,21 @@ addEventListener('load', () => {
 		backendApi.POST("/api/media", medias)
 			.then(medias => chrome.storage.local.set({ medias }))
 			.catch(e => showError(`Failed to sync media with backend: ${e.message}`))
-			.finally(() => updatePanel());
+			.finally(() => {
+				// ensure tab buttons reflect stored mode
+				chrome.storage.local.get('mode', ({ mode = 'medias' }) => {
+					const tabMedias = $('tab-medias');
+					const tabFollowers = $('tab-followers');
+					if (mode === 'medias') {
+						tabMedias.classList.add('active');
+						tabFollowers.classList.remove('active');
+					} else {
+						tabMedias.classList.remove('active');
+						tabFollowers.classList.add('active');
+					}
+					updatePanel();
+				});
+			});
 	});
 });
 
@@ -306,15 +334,51 @@ $("test-config").addEventListener('click', () => testBackendConnection());
 $("apply-config").addEventListener('click', () => applyConfig());
 $("remove-cached-images").addEventListener('click', () => removeCachedImages());
 $("remove-all-images").addEventListener('click', () => removeAllImages());
+$("export-followers-json").addEventListener('click', () => exportFollowersJSON());
+
+// tab switching
+$('tab-medias').addEventListener('click', () => {
+	$('tab-medias').classList.add('active');
+	$('tab-followers').classList.remove('active');
+	chrome.storage.local.set({ mode: 'medias' }, () => updatePanel());
+});
+
+$('tab-followers').addEventListener('click', () => {
+	$('tab-followers').classList.add('active');
+	$('tab-medias').classList.remove('active');
+	chrome.storage.local.set({ mode: 'followers' }, () => updatePanel());
+});
 
 /**
  * Recieve message
  */
 chrome.runtime.onConnect.addListener(port => {
-	const listener = async message => addImageData(message);
+	const listenerProc = {
+		'twxfilter-panel': addImageData,
+		'twxfilter-followers': storeFollowers,
+	}[port.name];
+	if (!listenerProc) return;
 
-	if (port.name === 'twxfilter-panel') {
-		port.onMessage.addListener(listener);
-		port.onDisconnect.addListener(port => port.onMessage.removeListener(listener));
-	}
+	const listener = async message => listenerProc(message);
+	port.onMessage.addListener(listener);
+	port.onDisconnect.addListener(port => port.onMessage.removeListener(listener));
 });
+
+const exportFollowersJSON = () => {
+	chrome.storage.local.get('followers', result => {
+		const followersStore = result.followers ?? {};
+		const map = {};
+		Object.values(followersStore).forEach(v => {
+			const d = v.detail ?? {};
+			const screen = d.core?.screen_name ?? d.screenName ?? (d.legacy && d.legacy.screen_name) ?? d.screen_name ?? '';
+			const name = d.core?.name ?? d.name ?? d.legacy?.name ?? '';
+			if (screen) map[screen] = name;
+		});
+
+		const blob = new Blob([JSON.stringify(map, null, 2)], { type: 'application/json' });
+		const url = URL.createObjectURL(blob);
+		const a = ce('a', { href: url, download: 'followers.json' });
+		a.click();
+		URL.revokeObjectURL(url);
+	});
+};

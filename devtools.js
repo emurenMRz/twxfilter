@@ -69,6 +69,82 @@ const extractMedia = (url, contentType, content) => {
 };
 
 /**
+ * 
+ * @param {*} result 
+ * @returns 
+ */
+const parseUser = (result) => {
+	if (result === undefined || result?.__typename !== 'User') return;
+
+	const { rest_id, avatar, core, is_blue_verified, legacy, location, privacy, relationship_perspectives, verification } = result;
+	return {
+		id: rest_id,
+		icon: avatar.image_url,
+		createdAt: core.created_at,
+		name: core.name,
+		screenName: core.screen_name,
+		isBlueVerified: is_blue_verified,
+		legacy: {
+			defaultProfile: legacy.default_profile,
+			defaultProfileImage: legacy.default_profile_image,
+			description: legacy.description,
+			entities: legacy.entities,
+			fastFollowersCount: legacy.fast_followers_count,
+			favouritesCount: legacy.favourites_count,
+			followersCount: legacy.followers_count,
+			friendsCount: legacy.friends_count,
+			hasCustomTimelines: legacy.has_custom_timelines,
+			isTranslator: legacy.is_translator,
+			listedCount: legacy.listed_count,
+			mediaCount: legacy.media_count,
+			normalFollowersCount: legacy.normal_followers_count,
+			pinnedTweetIdsStr: legacy.pinned_tweet_ids_str,
+			possiblySensitive: legacy.possibly_sensitive,
+			profileInterstitialType: legacy.profile_interstitial_type,
+			statusesCount: legacy.statuses_count,
+			translatorType: legacy.translator_type,
+			wantRetweets: legacy.want_retweets,
+			withheldInCountries: legacy.withheld_in_countries,
+		},
+		location: location.location,
+		protected: privacy.protected,
+		followedBy: relationship_perspectives.followed_by,
+		following: relationship_perspectives.following,
+		verified: verification.verified,
+	};
+};
+
+/**
+ * 
+ * @param {*} url 
+ * @param {*} contentType 
+ * @param {*} content 
+ * @returns 
+ */
+const extractFollower = (url, contentType, content) => {
+	const o = JSON.parse(content);
+	if (o.data.user.result.__typename !== 'User') return;
+
+	const { instructions } = o.data.user.result.timeline.timeline;
+	instructions.forEach(({ type, entries }) => {
+		if (type !== 'TimelineAddEntries' || !(entries instanceof Array)) return;
+
+		const followers = entries.map(({ sortIndex, content }) => {
+			const { entryType, itemContent } = content;
+			if (entryType !== 'TimelineTimelineItem') return;
+			if (itemContent.itemType !== "TimelineUser") return;
+
+			const { result } = itemContent.user_results;
+			return {
+				sortIndex,
+				user: parseUser(result)
+			};
+		});
+		chrome.runtime.connect({ name: "twxfilter-followers" }).postMessage(followers.filter(v => !!v));
+	});
+};
+
+/**
  * Fetch request
  */
 chrome.devtools.network.onRequestFinished.addListener(
@@ -78,15 +154,25 @@ chrome.devtools.network.onRequestFinished.addListener(
 		const request = io.request;
 		const response = io.response;
 
-		const url = request.url.substring(0, request.url.indexOf('?'));
-		if (!url.startsWith("https://x.com/i/api/graphql/") || !url.endsWith("TweetDetail")) return;
+		const [url, queryString] = request.url.split("?");
+		if (!url.startsWith("https://x.com/i/api/graphql/")) return;
+		const query = new URLSearchParams(queryString);
+		const variables = JSON.parse(query.get("variables") ?? "{}");
+		const features = JSON.parse(query.get("features") ?? "{}");
+
+		let extractor = null;
+		if (url.endsWith("TweetDetail")) extractor = extractMedia;
+		else if (url.endsWith("Followers")) extractor = extractFollower;
+		else return;
 
 		const contentType = response?.headers?.find(v => v.name === 'content-type').value;
 		if (typeof contentType !== "string") return;
 
 		io.getContent(content => {
-			console.debug(content);
-			extractMedia(url, contentType, content);
+			if (extractor)
+				extractor(url, contentType, content, variables, features);
+			else
+				chrome.devtools.inspectedWindow.eval(`console.log('${content}');`);
 		});
 	});
 
