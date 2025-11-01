@@ -182,7 +182,7 @@ const processAndRenderMedia = (mediaData, backendUri) => {
     const filteredData = filterMedia(mediaData);
     const sortedData = sortMedia(filteredData);
     return renderMediaGrid(sortedData, backendUri);
-}
+};
 
 const rerenderAllVisibleGrids = (backendUri) => {
     const loadedAccordions = document.querySelectorAll('.tab-content .media-grid[data-date]');
@@ -200,6 +200,8 @@ const initControls = (backendUri) => {
     const allInputs = document.querySelectorAll('.controls-panel input[type="radio"]');
 
     const handleControlChange = () => {
+        const prevMinSize = currentFilters.minSize;
+
         // Update state from UI
         currentSort.by = document.querySelector('.controls-panel input[name="sort-by"]:checked').value;
         currentSort.order = document.querySelector('.controls-panel input[name="sort-order"]:checked').value;
@@ -208,9 +210,23 @@ const initControls = (backendUri) => {
 
         // Save to storage
         chrome.storage.sync.set({ [CONTROLS_STORAGE_KEY]: { sort: currentSort, filters: currentFilters } });
-        
-        // Re-render
-        rerenderAllVisibleGrids(backendUri);
+
+        if (currentFilters.minSize === prevMinSize) {
+            // Re-render
+            rerenderAllVisibleGrids(backendUri);
+        } else {
+            // Re-build catalog
+            mediaCache = {};
+
+            backendApi.GET(`/api/catalog/index?min-size=${currentFilters.minSize}`, null, { overrideBackendAddress: backendUri })
+                .then(catalogIndex => {
+                    renderCatalog(catalogIndex, backendUri);
+                })
+                .catch(e => {
+                    showError(`Failed to fetch catalog index with min-size: ${e.message}`);
+                    $('media-container').textContent = `Failed to fetch catalog index: ${e.message}`;
+                });
+        }
     };
 
     chrome.storage.sync.get(CONTROLS_STORAGE_KEY, (result) => {
@@ -335,13 +351,22 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }, false);
 
-        backendApi.GET("/api/catalog/index", null, { overrideBackendAddress: backendUri })
-            .then(catalogIndex => {
-                renderCatalog(catalogIndex, backendUri);
-            })
-            .catch(e => {
-                showError(`Failed to fetch catalog index from backend: ${e.message}`);
-                $('media-container').textContent = `Failed to fetch catalog index: ${e.message}`;
-            });
+        chrome.storage.sync.get(CONTROLS_STORAGE_KEY, (result) => {
+            const savedControls = result[CONTROLS_STORAGE_KEY];
+            if (savedControls) {
+                if (savedControls.sort) currentSort = savedControls.sort;
+                if (savedControls.filters) currentFilters = savedControls.filters;
+            }
+
+            const queryParams = currentFilters?.minSize > 0 ? `?min-size=${currentFilters.minSize}` : "";
+            backendApi.GET(`/api/catalog/index${queryParams}`, null, { overrideBackendAddress: backendUri })
+                .then(catalogIndex => {
+                    renderCatalog(catalogIndex, backendUri);
+                })
+                .catch(e => {
+                    showError(`Failed to fetch catalog index from backend: ${e.message}`);
+                    $('media-container').textContent = `Failed to fetch catalog index: ${e.message}`;
+                });
+        });
     });
 });
