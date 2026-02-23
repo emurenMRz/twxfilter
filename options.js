@@ -422,7 +422,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const filename = media.url.split('/').pop().split('?')[0];
         detailFilename.textContent = filename;
         detailSize.textContent = formatBytes(media.contentLength || 0);
-        detailResolution.textContent = `${media.width || '-'}x${media.height || '-'}`;
         detailDuration.textContent = media.durationMillis
             ? `${Math.floor(media.durationMillis / 60000)}:${String(Math.floor((media.durationMillis % 60000) / 1000)).padStart(2, '0')}`
             : '-';
@@ -441,11 +440,23 @@ document.addEventListener('DOMContentLoaded', () => {
             previewImage.style.display = 'block';
             previewImage.src = mediaUrl;
             previewImage.alt = filename;
+            // Load image and get resolution from naturalWidth/naturalHeight
+            if (previewImage.complete) {
+                detailResolution.textContent = `${previewImage.naturalWidth || '-'}x${previewImage.naturalHeight || '-'}`;
+            } else {
+                previewImage.onload = () => {
+                    detailResolution.textContent = `${previewImage.naturalWidth || '-'}x${previewImage.naturalHeight || '-'}`;
+                };
+            }
         } else {
             previewVideo.style.display = 'block';
             previewImage.style.display = 'none';
             previewVideo.src = mediaUrl;
             previewVideo.load();
+            // Load video and get resolution from videoWidth/videoHeight
+            previewVideo.onloadedmetadata = () => {
+                detailResolution.textContent = `${previewVideo.videoWidth || '-'}x${previewVideo.videoHeight || '-'}`;
+            };
         }
     };
 
