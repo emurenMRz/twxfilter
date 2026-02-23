@@ -14,12 +14,12 @@ export const thumbnailUrl = url => {
 };
 
 export const buildThumbnail = (media, backendUri, options = {}) => {
-	const { 
-		view = 'normal', 
-		onRemove, 
-		onCheck,  
-		onDelete, 
-		deleteCompleted 
+	const {
+		view = 'normal',
+		onRemove,
+		onCheck,
+		onDelete,
+		deleteCompleted
 	} = options;
 
 	const isPhoto = media.type === 'photo';
@@ -93,7 +93,7 @@ export const buildThumbnail = (media, backendUri, options = {}) => {
 			const cachedIconProps = { className: "cached-icon" };
 			children.push(ce("span", cachedIconProps, "🆗"));
 		}
-	} else { // 'duplicate' view
+	} else { // 'duplicate' or 'cached' view
 		const deleteIconProps = {
 			className: "delete",
 			onclick: (e) => {
@@ -103,6 +103,14 @@ export const buildThumbnail = (media, backendUri, options = {}) => {
 			}
 		};
 		children.push(ce("span", deleteIconProps, "🚮"));
+
+		if (view === "cached") {
+			cellProps.onclick = (e) => {
+				// Open side panel with this media
+				if (window.openSidePanel)
+					window.openSidePanel(e.target.id);
+			};
+		}
 	}
 
 	if (durationElement) {

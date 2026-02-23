@@ -1,13 +1,19 @@
 import { $, createElement as ce } from "./common/dom.js";
 import backendApi from "./common/api.js";
 import { buildThumbnail } from "./common/thumbnail.js";
-import { showError, isValidMediasArray } from "./common/utils.js";
+import { showError, isValidMediasArray, formatBytes } from "./common/utils.js";
 
 // --- Globals for controls --- //
 let mediaCache = {};
 let currentSort = { by: 'timestamp', order: 'desc' };
 let currentFilters = { minSize: 0, type: 'all' };
 const CONTROLS_STORAGE_KEY = 'cachedMediaControls';
+
+// --- Side Panel State --- //
+let selectedMediaId = null;
+let mediaHistory = []; // History of selected media IDs
+let currentHistoryIndex = -1;
+let currentBackendUri = null;
 // ------------------------- //
 
 const deleteCacheFile = (id, completed) => {
@@ -149,7 +155,7 @@ const renderMediaGrid = (mediaData, backendUri) => {
 
     mediaData.forEach(media => {
         const thumbnail = buildThumbnail(media, backendUri, {
-            view: 'duplicate', // Use duplicate view for delete functionality
+            view: 'cached',
             onDelete: deleteCacheFile,
             deleteCompleted: () => {
                 const element = document.getElementById(media.id);
@@ -303,6 +309,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Set backend URI for side panel
+        currentBackendUri = backendUri;
+
         initControls(backendUri);
 
         // Set initial visibility of sort options
@@ -368,5 +377,206 @@ document.addEventListener('DOMContentLoaded', () => {
                     $('media-container').textContent = `Failed to fetch catalog index: ${e.message}`;
                 });
         });
+    });
+
+    // --- Side Panel Logic --- //
+    const sidePanel = $('side-panel');
+    const sidePanelClose = $('side-panel-close');
+    const previewVideo = $('preview-video');
+    const previewImage = $('preview-image');
+    const detailFilename = $('detail-filename');
+    const detailSize = $('detail-size');
+    const detailResolution = $('detail-resolution');
+    const detailDuration = $('detail-duration');
+    const detailTimestamp = $('detail-timestamp');
+    const detailType = $('detail-type');
+    const openInNewTabBtn = $('open-in-new-tab');
+
+    // Format timestamp to readable date
+    const formatTimestamp = (timestamp) => {
+        const date = new Date(timestamp);
+        return date.toLocaleString('ja-JP', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+    };
+
+    // Get media info from mediaCache
+    const getMediaById = (id) => {
+        for (const date in mediaCache) {
+            const media = mediaCache[date].find(m => m.id === id);
+            if (media) return media;
+        }
+        return null;
+    };
+
+    // Update side panel with media info
+    const updateSidePanel = (media) => {
+        if (!media) return;
+
+        // Update details
+        const filename = media.url.split('/').pop().split('?')[0];
+        detailFilename.textContent = filename;
+        detailSize.textContent = formatBytes(media.contentLength || 0);
+        detailResolution.textContent = `${media.width || '-'}x${media.height || '-'}`;
+        detailDuration.textContent = media.durationMillis
+            ? `${Math.floor(media.durationMillis / 60000)}:${String(Math.floor((media.durationMillis % 60000) / 1000)).padStart(2, '0')}`
+            : '-';
+        detailTimestamp.textContent = formatTimestamp(media.timestamp);
+        detailType.textContent = media.type === 'photo' ? 'Picture' : 'Video/GIF';
+
+        // Update preview element
+        const mediaUrl = media.mediaPath
+            ? `${currentBackendUri}/${media.mediaPath}`
+            : (media.type === 'photo'
+                ? `${media.url}?name=orig`
+                : media.videoUrl);
+
+        if (media.type === 'photo') {
+            previewVideo.style.display = 'none';
+            previewImage.style.display = 'block';
+            previewImage.src = mediaUrl;
+            previewImage.alt = filename;
+        } else {
+            previewVideo.style.display = 'block';
+            previewImage.style.display = 'none';
+            previewVideo.src = mediaUrl;
+            previewVideo.load();
+        }
+    };
+
+    // Open side panel with selected media
+    const openSidePanel = (mediaId) => {
+        selectedMediaId = mediaId;
+        
+        // Update history
+        if (currentHistoryIndex < mediaHistory.length - 1) {
+            mediaHistory = mediaHistory.slice(0, currentHistoryIndex + 1);
+        }
+        mediaHistory.push(mediaId);
+        currentHistoryIndex = mediaHistory.length - 1;
+
+        const media = getMediaById(mediaId);
+        if (media) {
+            sidePanel.classList.add('open');
+            document.querySelector('.tab-container').classList.add('side-panel-open');
+            updateSidePanel(media);
+        }
+    };
+
+    // Close side panel
+    const closeSidePanel = () => {
+        sidePanel.classList.remove('open');
+        document.querySelector('.tab-container').classList.remove('side-panel-open');
+        selectedMediaId = null;
+        previewVideo.src = '';
+        previewImage.src = '';
+    };
+
+    // Navigate history
+    const navigateHistory = (direction) => {
+        if (mediaHistory.length === 0) return;
+
+        const newIndex = currentHistoryIndex + direction;
+        if (newIndex >= 0 && newIndex < mediaHistory.length) {
+            currentHistoryIndex = newIndex;
+            const mediaId = mediaHistory[currentHistoryIndex];
+            const media = getMediaById(mediaId);
+            if (media) {
+                updateSidePanel(media);
+                // Highlight the thumbnail
+                const thumb = $(`#${mediaId}`);
+                if (thumb) {
+                    thumb.classList.add('selected');
+                    thumb.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        }
+    };
+
+    // Event listeners for side panel
+    sidePanelClose.addEventListener('click', closeSidePanel);
+
+    openInNewTabBtn.addEventListener('click', () => {
+        if (selectedMediaId) {
+            const media = getMediaById(selectedMediaId);
+            if (media) {
+                const mediaUrl = media.mediaPath
+                    ? `${currentBackendUri}/${media.mediaPath}`
+                    : (media.type === 'photo'
+                        ? `${media.url}?name=orig`
+                        : media.videoUrl);
+                open(mediaUrl, '_blank');
+            }
+        }
+    });
+
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+        if (!sidePanel.classList.contains('open')) return;
+
+        if (e.key === 'Escape') {
+            closeSidePanel();
+        } else if (e.key === 'ArrowLeft') {
+            navigateHistory(-1);
+        } else if (e.key === 'ArrowRight') {
+            navigateHistory(1);
+        }
+    });
+
+    // Expose functions for thumbnail click handler
+    window.openSidePanel = openSidePanel;
+    window.closeSidePanel = closeSidePanel;
+    window.getMediaById = getMediaById;
+
+    // --- Side Panel Resizer Logic --- //
+    let isResizing = false;
+    let startX = 0;
+    let startWidth = 0;
+
+    // Create resizer element
+    const resizer = ce('div', { className: 'side-panel-resizer' });
+    sidePanel.appendChild(resizer);
+
+    // Mouse down event for resizing
+    resizer.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        startX = e.clientX;
+        startWidth = sidePanel.offsetWidth;
+        resizer.classList.add('dragging');
+        e.preventDefault();
+    });
+
+    // Mouse move event for resizing
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+
+        const deltaX = startX - e.clientX;
+        let newWidth = startWidth + deltaX;
+
+        // Clamp width between min-width (640px) and max-width (90vw)
+        const maxWidth = Math.max(640, window.innerWidth * 0.9);
+        newWidth = Math.max(640, Math.min(newWidth, maxWidth));
+
+        sidePanel.style.width = `${newWidth}px`;
+        
+        // Update tab container width when side panel is resized
+        const tabContainer = document.querySelector('.tab-container');
+        if (tabContainer) {
+            tabContainer.style.width = `calc(100% - ${newWidth}px)`;
+            tabContainer.style.marginRight = `${newWidth}px`;
+        }
+    });
+
+    // Mouse up event to stop resizing
+    document.addEventListener('mouseup', () => {
+        if (isResizing) {
+            isResizing = false;
+            resizer.classList.remove('dragging');
+        }
     });
 });

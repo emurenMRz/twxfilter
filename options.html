@@ -6,42 +6,7 @@
     <link rel="stylesheet" href="options.css">
 </head>
 <body>
-    <div class="controls-panel">
-        <fieldset>
-            <legend>Display Controls</legend>
-            <div class="control-group">
-                <span>Sort by:</span>
-                <label><input type="radio" name="sort-by" value="timestamp"> Timestamp</label>
-                <label><input type="radio" name="sort-by" value="content-length"> File Size</label>
-            </div>
-            <div class="control-group">
-                <span>Order:</span>
-                <label><input type="radio" name="sort-order" value="desc"> Descending</label>
-                <label><input type="radio" name="sort-order" value="asc"> Ascending</label>
-            </div>
-            <hr class="control-separator">
-            <div class="control-group">
-                <span>Min Size:</span>
-                <div class="radio-group">
-                    <label><input type="radio" name="filter-size" value="0"> All</label>
-                    <label><input type="radio" name="filter-size" value="1048576"> &ge;1MB</label>
-                    <label><input type="radio" name="filter-size" value="10485760"> &ge;10MB</label>
-                    <label><input type="radio" name="filter-size" value="104857600"> &ge;100MB</label>
-                    <label><input type="radio" name="filter-size" value="524288000"> &ge;500MB</label>
-                    <label><input type="radio" name="filter-size" value="1073741824"> &ge;1GB</label>
-                </div>
-            </div>
-            <div class="control-group">
-                <span>Type:</span>
-                <div class="radio-group">
-                    <label><input type="radio" name="filter-type" value="all"> All</label>
-                    <label><input type="radio" name="filter-type" value="photo"> Photo</label>
-                    <label><input type="radio" name="filter-type" value="video"> Video/GIF</label>
-                </div>
-            </div>
-        </fieldset>
-    </div>
-    <div class="tab-container">
+    <div class="tab-container side-panel-open">
         <div class="tab-nav">
             <button class="tab-button active" data-tab="cached-media">Cached Media</button>
             <button class="tab-button" data-tab="duplicated-media">Duplicated Media</button>
@@ -54,6 +19,82 @@
                 <p>Drop a JSON file here to find duplicated media.</p>
             </div>
             <main id="duplicated-media-container"></main>
+        </div>
+    </div>
+    <div id="side-panel" class="side-panel open">
+        <div class="side-panel-header">
+            <span class="side-panel-title">Media preview</span>
+            <button type="button" id="side-panel-close" class="side-panel-close" aria-label="Close">×</button>
+        </div>
+        <div class="side-panel-content">
+            <div class="controls-panel">
+                <fieldset>
+                    <legend>Display Controls</legend>
+                    <div class="control-group">
+                        <span>Sort by:</span>
+                        <label><input type="radio" name="sort-by" value="timestamp"> Timestamp</label>
+                        <label><input type="radio" name="sort-by" value="content-length"> File Size</label>
+                    </div>
+                    <div class="control-group">
+                        <span>Order:</span>
+                        <label><input type="radio" name="sort-order" value="desc"> Descending</label>
+                        <label><input type="radio" name="sort-order" value="asc"> Ascending</label>
+                    </div>
+                    <hr class="control-separator">
+                    <div class="control-group">
+                        <span>Min Size:</span>
+                        <div class="radio-group">
+                            <label><input type="radio" name="filter-size" value="0"> All</label>
+                            <label><input type="radio" name="filter-size" value="1048576"> &ge;1MB</label>
+                            <label><input type="radio" name="filter-size" value="10485760"> &ge;10MB</label>
+                            <label><input type="radio" name="filter-size" value="104857600"> &ge;100MB</label>
+                            <label><input type="radio" name="filter-size" value="524288000"> &ge;500MB</label>
+                            <label><input type="radio" name="filter-size" value="1073741824"> &ge;1GB</label>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <span>Type:</span>
+                        <div class="radio-group">
+                            <label><input type="radio" name="filter-type" value="all"> All</label>
+                            <label><input type="radio" name="filter-type" value="photo"> Photo</label>
+                            <label><input type="radio" name="filter-type" value="video"> Video/GIF</label>
+                        </div>
+                    </div>
+                </fieldset>
+            </div>
+            <div class="preview-container">
+                <video id="preview-video" class="preview-element" controls></video>
+                <img id="preview-image" class="preview-element" alt="Preview">
+            </div>
+            <div class="media-details">
+                <div class="detail-row">
+                    <span class="detail-label">File name:</span>
+                    <span id="detail-filename" class="detail-value">-</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Size:</span>
+                    <span id="detail-size" class="detail-value">-</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Resolution:</span>
+                    <span id="detail-resolution" class="detail-value">-</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Duration:</span>
+                    <span id="detail-duration" class="detail-value">-</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Posted:</span>
+                    <span id="detail-timestamp" class="detail-value">-</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Type:</span>
+                    <span id="detail-type" class="detail-value">-</span>
+                </div>
+            </div>
+            <div class="side-panel-actions">
+                <button type="button" id="open-in-new-tab" class="btn">Open in New Tab</button>
+            </div>
         </div>
     </div>
     <script src="options.js" type="module"></script>

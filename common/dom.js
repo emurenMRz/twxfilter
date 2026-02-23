@@ -36,7 +36,7 @@ export const createElement = (tag, props, ...children) => {
 		else if (child instanceof Array)
 			for (const a of child)
 				apply(a);
-	}
+	};
 
 	for (const child of children)
 		apply(child);
@@ -48,11 +48,12 @@ export const applyObserve = element => {
 	const observer = new IntersectionObserver(entries => {
 		entries.forEach(entry => {
 			if (!entry.isIntersecting) return;
-			if (element.onclick) return;
 
 			const { thumbUrl, mediaUrl } = element.dataset;
 			element.style.backgroundImage = `url("${thumbUrl}")`;
-			element.onclick = () => open(mediaUrl, '_blank');
+
+			if (!element.onclick)
+				element.onclick = (() => open(mediaUrl, '_blank'));
 		});
 	});
 	observer.observe(element);
