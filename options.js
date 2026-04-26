@@ -5,6 +5,7 @@ import { showError, isValidMediasArray, formatBytes } from "./common/utils.js";
 
 // --- Globals for controls --- //
 let mediaCache = {};
+let catalogIndexData = []; // Stores the raw catalog index response for re-filtering
 let currentSort = { by: 'timestamp', order: 'desc' };
 let currentFilters = { minSize: 0, type: 'all' };
 const CONTROLS_STORAGE_KEY = 'cachedMediaControls';
@@ -207,6 +208,7 @@ const initControls = (backendUri) => {
 
     const handleControlChange = () => {
         const prevMinSize = currentFilters.minSize;
+        const prevType = currentFilters.type;
 
         // Update state from UI
         currentSort.by = document.querySelector('.controls-panel input[name="sort-by"]:checked').value;
@@ -217,12 +219,10 @@ const initControls = (backendUri) => {
         // Save to storage
         chrome.storage.sync.set({ [CONTROLS_STORAGE_KEY]: { sort: currentSort, filters: currentFilters } });
 
-        if (currentFilters.minSize === prevMinSize) {
-            // Re-render
-            rerenderAllVisibleGrids(backendUri);
-        } else {
-            // Re-build catalog
+        if (currentFilters.minSize !== prevMinSize) {
+            // Re-build catalog with new min-size
             mediaCache = {};
+            catalogIndexData = [];
 
             backendApi.GET(`/api/catalog/index?min-size=${currentFilters.minSize}`, null, { overrideBackendAddress: backendUri })
                 .then(catalogIndex => {
@@ -232,6 +232,13 @@ const initControls = (backendUri) => {
                     showError(`Failed to fetch catalog index with min-size: ${e.message}`);
                     $('media-container').textContent = `Failed to fetch catalog index: ${e.message}`;
                 });
+        } else if (currentFilters.type !== prevType) {
+            // Re-render catalog with new type filter (no API call)
+            mediaCache = {};
+            renderCatalog(catalogIndexData, backendUri);
+        } else {
+            // Re-render visible grids (sort change)
+            rerenderAllVisibleGrids(backendUri);
         }
     };
 
@@ -256,15 +263,36 @@ const renderCatalog = (catalogIndex, backendUri) => {
     const container = $('media-container');
     container.replaceChildren(); // Clear existing content
 
-    if (!catalogIndex || catalogIndex.length === 0) {
+    // Store the raw catalog index data for re-filtering
+    if (catalogIndex && catalogIndex.length > 0)
+        catalogIndexData = catalogIndex;
+
+    if (!catalogIndexData || catalogIndexData.length === 0) {
         container.textContent = "No cached media found.";
         return;
     }
 
-    // Sort dates in descending order
-    const sortedDates = catalogIndex.sort((a, b) => b.localeCompare(a));
+    // Filter catalog by type
+    const filteredCatalog = catalogIndexData.filter(item => {
+        if (currentFilters.type === 'all')
+            return true;
+        else if (currentFilters.type === 'photo')
+            return item.types && item.types.includes('photo');
+        else if (currentFilters.type === 'video')
+            return item.types && item.types.includes('video');
+        return true;
+    });
 
-    sortedDates.forEach(date => {
+    if (filteredCatalog.length === 0) {
+        container.textContent = "No media matches the current type filter.";
+        return;
+    }
+
+    // Sort dates in descending order
+    const sortedCatalog = filteredCatalog.sort((a, b) => b.date.localeCompare(a.date));
+
+    sortedCatalog.forEach(item => {
+        const date = item.date;
         const accordionId = `accordion-${date}`;
         const accordionHeader = ce("h2", { className: "date-header" }, date);
         const accordionBody = ce("div", { id: accordionId, className: "accordion-body collapsed" });
@@ -463,7 +491,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Open side panel with selected media
     const openSidePanel = (mediaId) => {
         selectedMediaId = mediaId;
-        
+
         // Update history
         if (currentHistoryIndex < mediaHistory.length - 1) {
             mediaHistory = mediaHistory.slice(0, currentHistoryIndex + 1);
@@ -574,7 +602,7 @@ document.addEventListener('DOMContentLoaded', () => {
         newWidth = Math.max(640, Math.min(newWidth, maxWidth));
 
         sidePanel.style.width = `${newWidth}px`;
-        
+
         // Update tab container width when side panel is resized
         const tabContainer = document.querySelector('.tab-container');
         if (tabContainer) {
