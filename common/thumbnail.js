@@ -108,7 +108,7 @@ export const buildThumbnail = (media, backendUri, options = {}) => {
 			cellProps.onclick = (e) => {
 				// Open side panel with this media
 				if (window.openSidePanel)
-					window.openSidePanel(e.target.id);
+					window.openSidePanel(e.currentTarget.id);
 			};
 		}
 	}

@@ -151,6 +151,7 @@ body {
 .video-icon {
     font-size: 1.5rem;
     z-index: 100;
+    pointer-events: none;
 }
 
 .delete {
@@ -291,7 +292,7 @@ body {
     height: 100vh;
     background-color: #fff;
     border-left: 1px solid #ccc;
-    box-shadow: -2px 0 5px rgba(0,0,0,0.2);
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.2);
     transform: translateX(100%);
     transition: transform 0.3s ease-out;
     z-index: 9999;
@@ -382,8 +383,9 @@ body {
     display: block;
 }
 
+.preview-container video,
 .preview-container img {
-    max-height: 400px;
+    max-height: 50dvh;
     object-fit: contain;
 }
 
@@ -434,7 +436,7 @@ body {
     position: fixed;
     bottom: 1rem;
     right: 1rem;
-    background-color: rgba(0,0,0,0.8);
+    background-color: rgba(0, 0, 0, 0.8);
     color: white;
     padding: 0.5rem 1rem;
     border-radius: 4px;

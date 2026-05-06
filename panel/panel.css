@@ -60,6 +60,7 @@ article>header {
 .video-icon {
     font-size: 1.5rem;
     z-index: 100;
+    pointer-events: none;
 }
 
 .remove {
